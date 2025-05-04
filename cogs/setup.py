@@ -384,7 +384,8 @@ class Setup(commands.Cog):
                 hostname=sftp_info["host"],
                 port=sftp_info["port"],
                 username=sftp_info["username"],
-                password=sftp_info["password"]
+                password=sftp_info["password"],
+                server_id=server_id
             )
 
             # Test connection

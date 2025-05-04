@@ -241,6 +241,32 @@ class SFTPClient:
         
         return result
         
+    async def get_log_file(self) -> Optional[str]:
+        """Get the game log file path
+        
+        Returns:
+            Optional[str]: Path to log file if found, None otherwise
+        """
+        await self.ensure_connected()
+        
+        try:
+            # Construct base path to logs
+            server_dir = f"{self.hostname.split(':')[0]}_{self.server_id}"
+            log_path = os.path.join(".", server_dir, "actual1", "logs")
+            
+            # Find log file
+            log_files = await self.find_files_by_pattern(log_path, r"\.log$")
+            
+            if log_files:
+                # Return most recent log file
+                return sorted(log_files)[-1]
+                
+            return None
+            
+        except Exception as e:
+            logger.error(f"Failed to get log file: {e}")
+            return None
+
     async def _find_files_recursive(self, directory: str, pattern_re: re.Pattern, result: List[str], recursive: bool, max_depth: int, current_depth: int):
         """Recursively find files by pattern
         
