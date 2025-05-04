@@ -1,6 +1,6 @@
-# Tower of Temptation PvP Statistics System
+# Tower of Temptation PvP Statistics Bot
 
-A comprehensive gaming statistics system that combines a powerful Discord bot with a web dashboard for tracking Tower of Temptation PvP gameplay data. This system offers multi-guild isolation, robust player statistics, and advanced rivalry tracking.
+A robust Discord bot for tracking Tower of Temptation PvP gameplay data, offering multi-guild isolation, player statistics, and advanced rivalry tracking with comprehensive debugging tools.
 
 ## Features
 
@@ -9,84 +9,62 @@ A comprehensive gaming statistics system that combines a powerful Discord bot wi
 - **Player Rivalries**: Track nemesis and prey relationships between players
 - **Bounty System**: Place bounties on players and claim rewards for fulfilling them
 - **Server Statistics**: Detailed statistics for each game server
-- **Web Dashboard**: View leaderboards, stats, and player information on a responsive web interface
 - **Historical Parsing**: Process historical game logs to build a comprehensive statistics database
 
-## Running the Complete System on Replit
+## Running the Bot on Replit
 
 ### Quick Start Guide
 
-1. **Start the System**: Simply click the **Run** button at the top of the Replit interface.
+1. **Start the Bot**: Simply click the **Run** button at the top of the Replit interface.
 2. **Monitor Status**: Watch the console for startup messages. You should see:
-   - "Starting Tower of Temptation PvP Statistics System..."
-   - "Discord Bot started with PID [number]"
-   - "Web Application started with PID [number]"
-   - "All components started successfully!"
-3. **Access Components**: 
-   - Web Dashboard: Available at the Replit webview
-   - Discord Bot: Will appear online in your Discord server
-4. **Stop the System**: Click the **Stop** button to terminate all processes.
+   - "Connected to MongoDB"
+   - "Bot is ready!"
+   - "Logged in as Tower of Temptation PvP Statistics Bot"
+3. **Accessing the Bot**: The bot will appear online in your Discord server
+4. **Stop the Bot**: Click the **Stop** button to terminate the process.
 
-### Running Individual Components
+### Using the Discord Bot Workflow
 
-You can also run just the Discord bot or just the web application using Replit workflows:
+You can also run the Discord bot using Replit workflows:
 
 1. Go to the "Tools" tab in Replit
 2. Select "Workflows"
-3. Choose one of the following:
-   - "Discord Bot" - Runs only the Discord bot
-   - "Web Application" - Runs only the web dashboard
-   - "Complete System" - Runs both components together
+3. Click the "Run" button next to "Discord Bot"
 
 ### Troubleshooting
 
-If the system fails to start:
+If the bot fails to start:
 - Check that all required environment variables are set in Replit Secrets
-- Verify MongoDB and PostgreSQL connections are working
+- Verify MongoDB connection is working
 - Check Discord token validity and permissions
 
 For detailed instructions, see [RUNNING_THE_BOT.md](RUNNING_THE_BOT.md).
 
-## System Architecture
+## Bot Architecture
 
-The Tower of Temptation PvP Statistics System consists of two main components:
+The Tower of Temptation PvP Statistics Bot is designed with a modular architecture:
 
-### 1. Discord Bot
+### Discord Bot Components
 
-The Discord bot component is responsible for:
+The Discord bot is responsible for:
 - Interacting with users via Discord commands
 - Processing game statistics from CSV files
 - Managing player leaderboards and rivalries
 - Handling the bounty system
 - Providing real-time statistics via Discord embeds
 
-### 2. Web Dashboard
-
-The web application provides:
-- A visual overview of PvP statistics
-- Leaderboards for top players
-- Rivalry tracking and visualization
-- Admin controls for system configuration
-- Server performance statistics
-
 ## Environment Variables
 
-The system requires the following environment variables:
+The bot requires the following environment variables:
 
-### Discord Bot
 - `DISCORD_TOKEN`: Your Discord bot token
-- `BOT_APPLICATION_ID`: Your Discord application ID
+- `BOT_APPLICATION_ID`: Your Discord application ID  
 - `HOME_GUILD_ID`: Discord ID of your home/main guild
 - `MONGODB_URI`: MongoDB connection string
 
-### Web Dashboard
-- `DATABASE_URL`: PostgreSQL database connection string
-- `SESSION_SECRET`: Secret key for session management
-- `PORT`: Web server port (default: 5000)
-
 ## Multi-Guild Isolation
 
-The Tower of Temptation PvP Statistics System is designed with robust multi-guild isolation:
+The Tower of Temptation PvP Statistics Bot is designed with robust multi-guild isolation:
 
 - Each Discord server (guild) has its own isolated data
 - Player statistics are tracked separately for each guild
@@ -97,35 +75,25 @@ This ensures that multiple Discord communities can use the bot without data leak
 
 ## Database Architecture
 
-The system uses two separate databases:
+The bot uses MongoDB for storage and retrieval of all data:
 
-1. **MongoDB** - For the Discord bot's real-time data:
-   - Player statistics
-   - Kill events
-   - Faction information
-   - Rivalries and bounties
+### MongoDB Collections
+- **guilds**: Discord server configurations
+- **players**: Player statistics and profiles
+- **events**: Kill events and other game events
+- **bounties**: Active and completed bounties
+- **factions**: Team or faction information
+- **rivalries**: Tracked player rivalries
 
-2. **PostgreSQL** - For the web dashboard:
-   - User accounts and authentication
-   - Dashboard configuration
-   - Performance metrics
-   - Long-term statistics
+## Bot Utilities
 
-## System Utilities
-
-The Tower of Temptation PvP Statistics System includes several utilities for maintenance and management:
+The Tower of Temptation PvP Statistics Bot includes several utilities for maintenance and management:
 
 ### Bot Management Scripts
 
 ```bash
-# Start the complete system (both bot and web app)
-./run_complete_system.sh
-
-# Start only the Discord bot
+# Start the Discord bot
 ./discord_bot.sh
-
-# Start only the web application
-./start_web_app.sh
 
 # Apply all bot fixes
 python comprehensive_bot_fixes.py
@@ -168,4 +136,4 @@ All server IDs, user IDs, and other sensitive identifiers are properly typed and
 
 ---
 
-Tower of Temptation PvP Statistics System © 2025
+Tower of Temptation PvP Statistics Bot © 2025

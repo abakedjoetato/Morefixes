@@ -1,10 +1,18 @@
 """
-Tower of Temptation PvP Statistics System Main Entry Point
+Tower of Temptation PvP Statistics Bot Main Entry Point
 
 This file serves as the entry point for the Replit Run button.
-It launches both the Discord bot and web application components.
+It launches the Discord bot with all the required configurations.
 """
-import start_app
+import os
+import sys
+import asyncio
+from bot import startup
 
 if __name__ == "__main__":
-    start_app.main()
+    # Run the bot's startup function
+    try:
+        asyncio.run(startup())
+    except KeyboardInterrupt:
+        print("Bot shutdown requested")
+        sys.exit(0)
