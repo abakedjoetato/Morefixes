@@ -381,11 +381,10 @@ class Setup(commands.Cog):
 
             # Create SFTP client to test connection
             sftp_client = SFTPClient(
-                host=sftp_info["host"],
+                hostname=sftp_info["host"],
                 port=sftp_info["port"],
                 username=sftp_info["username"],
-                password=sftp_info["password"],
-                server_id=server_id
+                password=sftp_info["password"]
             )
 
             # Test connection
