@@ -113,6 +113,19 @@ class Guild(BaseModel):
         """
         document = await db[cls.collection_name].find_one({"guild_id": guild_id})
         return cls.from_document(document)
+        
+    @classmethod
+    async def get_by_id(cls, db, guild_id) -> 'Guild':
+        """Get a guild by its Discord ID (alias for get_by_guild_id)
+        
+        Args:
+            db: Database connection
+            guild_id: Discord guild ID
+            
+        Returns:
+            Guild object or None if not found
+        """
+        return await cls.get_by_guild_id(db, str(guild_id))
 
 
 class GameServer(BaseModel):

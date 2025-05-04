@@ -25,6 +25,7 @@ from models.player_link import PlayerLink
 from utils.decorators import premium_tier_required, has_admin_permission, has_mod_permission
 from utils.embed_builder import EmbedBuilder
 from utils.discord_utils import get_server_selection
+from utils.server_utils import check_server_existence, get_server_data
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,8 @@ class BountiesCog(commands.GroupCog, name="bounty"):
         
         # Start the background task to check for auto-bounties
         self.check_auto_bounties.start()
+        
+    # Using shared utility function from utils.server_utils for server existence check
         
     def cog_unload(self):
         """Called when the cog is unloaded"""
@@ -115,7 +118,16 @@ class BountiesCog(commands.GroupCog, name="bounty"):
                     
                     # Process each server
                     servers = getattr(guild, 'servers', guild_data.get('servers', []))
-                    for server_id in servers:
+                    for server_entry in servers:
+                        # Handle both string server_id and server dictionary objects
+                        if isinstance(server_entry, dict):
+                            server_id = str(server_entry.get('server_id', ''))
+                        else:
+                            server_id = str(server_entry)
+                            
+                        if not server_id:
+                            logger.warning(f"Empty server_id found in guild {guild_id}, skipping")
+                            continue
                         try:
                             # Get potential bounty targets
                             # We already have a DB connection from the parent scope
@@ -225,17 +237,27 @@ class BountiesCog(commands.GroupCog, name="bounty"):
         except Exception as e:
             logger.error(f"Error creating auto-bounty: {e}", exc_info=True)
             
-    def _create_bounty_embed(self, bounty: Bounty, title: str, is_auto: bool = False) -> discord.Embed:
+    def _create_bounty_embed(self, bounty, title: str, is_auto: bool = False) -> discord.Embed:
         """Create an embed for a bounty
         
         Args:
-            bounty: The bounty to create an embed for
+            bounty: The bounty to create an embed for (Bounty object)
             title: Title for the embed
             is_auto: Whether this is an auto-bounty
             
         Returns:
             discord.Embed: The created embed
         """
+        # Type safety check
+        if not bounty:
+            logger.error("Attempted to create embed with None bounty")
+            # Return a basic error embed
+            embed = discord.Embed(
+                title="Error Creating Bounty Embed",
+                description="There was an error creating the bounty embed. Please try again.",
+                color=discord.Color.red()
+            )
+            return embed
         # Get the base embed
         embed = EmbedBuilder.info(title=title)
         
@@ -375,15 +397,8 @@ class BountiesCog(commands.GroupCog, name="bounty"):
                 )
                 return
                 
-            # Check if server exists
-            # Direct lookup from guild data since get_server might not be implemented
-            server_exists = False
-            if hasattr(guild, "data") and isinstance(guild.data, dict):
-                servers = guild.data.get("servers", [])
-                for srv in servers:
-                    if str(srv.get("server_id")) == str(server_id):
-                        server_exists = True
-                        break
+            # Use the utility method to check if the server exists
+            server_exists = await check_server_existence(guild, server_id, db)
             
             if not server_exists:
                 await interaction.followup.send(
@@ -543,9 +558,31 @@ class BountiesCog(commands.GroupCog, name="bounty"):
             # Get guild info
             guild_id = str(interaction.guild_id)
             
-            # Get active bounties
+            # Get database connection
             from utils.database import get_db
             db = await get_db()
+            
+            # Get guild data
+            guild = await Guild.get_by_guild_id(db, guild_id)
+            
+            if not guild:
+                await interaction.followup.send(
+                    "Error: Guild not found in database.",
+                    ephemeral=True
+                )
+                return
+                
+            # Use the utility method to check if the server exists
+            server_exists = await check_server_existence(guild, server_id, db)
+            
+            if not server_exists:
+                await interaction.followup.send(
+                    f"Error: Server with ID {server_id} not found for this guild.",
+                    ephemeral=True
+                )
+                return
+            
+            # Get active bounties
             bounties = await Bounty.get_active_bounties(db, server_id)
             
             # Format and send the bounties
@@ -597,14 +634,36 @@ class BountiesCog(commands.GroupCog, name="bounty"):
             guild_id = str(interaction.guild_id)
             discord_id = str(interaction.user.id)
             
-            # Get bounties based on type
+            # Get database connection
             from utils.database import get_db
             db = await get_db()
+            
+            # Get guild data
+            guild = await Guild.get_by_guild_id(db, guild_id)
+            
+            if not guild:
+                await interaction.followup.send(
+                    "Error: Guild not found in database.",
+                    ephemeral=True
+                )
+                return
+                
+            # Use the utility method to check if the server exists
+            server_exists = await check_server_existence(guild, server_id, db)
+            
+            if not server_exists:
+                await interaction.followup.send(
+                    f"Error: Server with ID {server_id} not found for this guild.",
+                    ephemeral=True
+                )
+                return
+            
+            # Get bounties based on type
             if view_type == "placed":
-                bounties = await Bounty.get_bounties_placed_by(db, discord_id)
+                bounties = await Bounty.get_bounties_placed_by(db, discord_id, server_id)
                 title = "Bounties You've Placed"
             else:  # claimed
-                bounties = await Bounty.get_bounties_claimed_by(db, discord_id)
+                bounties = await Bounty.get_bounties_claimed_by(db, discord_id, server_id)
                 title = "Bounties You've Claimed"
             
             # Filter to most recent 20 bounties

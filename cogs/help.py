@@ -167,20 +167,40 @@ class CommandSelect(discord.ui.Select):
             fields = []
         
         # Create embed
-        embed = EmbedBuilder.create_base_embed(
-            title=title,
-            description=description,
-            guild=guild_model
-        )
-        
-        # Add fields
-        for field in fields:
-            embed.add_field(name=field["name"], value=field["value"], inline=field.get("inline", False))
-        
-        # Add footer
-        embed.set_footer(text="Use /commands to see this help menu again")
-        
-        return embed
+        try:
+            embed = await EmbedBuilder.create_base_embed(
+                title=title,
+                description=description,
+                guild=guild_model
+            )
+            
+            # Add fields
+            for field in fields:
+                embed.add_field(name=field["name"], value=field["value"], inline=field.get("inline", False))
+            
+            # Add footer
+            embed.set_footer(text="Use /commands to see this help menu again")
+            
+            return embed
+        except Exception as e:
+            # Log the error
+            logging.error(f"Error creating category embed: {e}")
+            
+            # Create a fallback embed
+            fallback_embed = discord.Embed(
+                title=title,
+                description=description,
+                color=discord.Color.blue()
+            )
+            
+            # Add fields
+            for field in fields:
+                fallback_embed.add_field(name=field["name"], value=field["value"], inline=field.get("inline", False))
+            
+            # Add footer
+            fallback_embed.set_footer(text="Use /commands to see this help menu again")
+            
+            return fallback_embed
 
 
 class CommandsView(discord.ui.View):
@@ -228,28 +248,48 @@ class Help(commands.Cog):
                 self.logger.error(f"Error getting guild model for /commands: {e}")
             
             # Create initial embed - use default theme if no guild model
-            embed = EmbedBuilder.create_base_embed(
-                title="Powered By Discord.gg/EmeraldServers",
-                description="Use the dropdown menu below to navigate through different command categories.",
-                guild=guild_model
-            )
-            
-            # Add general info fields
-            embed.add_field(
-                name="Getting Started",
-                value="1️⃣ Use `/setup add_server <n> <host> <port> <user> <pass> <id>` to add a server\n2️⃣ Configure channels with `/setup channels <server>`\n3️⃣ Start monitoring with `/killfeed start <server>` and `/events start <server>`",
-                inline=False
-            )
-            
-            # Add premium tip
-            embed.add_field(
-                name="Premium Features",
-                value="Upgrade to premium for advanced statistics, economy features, and custom themes. Use `/premium features` to learn more.",
-                inline=False
-            )
-            
-            # Add footer
-            embed.set_footer(text="Select a category to see detailed command information")
+            try:
+                embed = await EmbedBuilder.create_base_embed(
+                    title="Powered By Discord.gg/EmeraldServers",
+                    description="Use the dropdown menu below to navigate through different command categories.",
+                    guild=guild_model
+                )
+                
+                # Add general info fields
+                embed.add_field(
+                    name="Getting Started",
+                    value="1️⃣ Use `/setup add_server <n> <host> <port> <user> <pass> <id>` to add a server\n2️⃣ Configure channels with `/setup channels <server>`\n3️⃣ Start monitoring with `/killfeed start <server>` and `/events start <server>`",
+                    inline=False
+                )
+                
+                # Add premium tip
+                embed.add_field(
+                    name="Premium Features",
+                    value="Upgrade to premium for advanced statistics, economy features, and custom themes. Use `/premium features` to learn more.",
+                    inline=False
+                )
+                
+                # Add footer
+                embed.set_footer(text="Select a category to see detailed command information")
+            except Exception as e:
+                self.logger.error(f"Error creating embed: {e}")
+                # Fallback to a basic embed if the themed one fails
+                embed = discord.Embed(
+                    title="Powered By Discord.gg/EmeraldServers",
+                    description="Use the dropdown menu below to navigate through different command categories.",
+                    color=discord.Color.blue()
+                )
+                embed.add_field(
+                    name="Getting Started",
+                    value="1️⃣ Use `/setup add_server <n> <host> <port> <user> <pass> <id>` to add a server\n2️⃣ Configure channels with `/setup channels <server>`\n3️⃣ Start monitoring with `/killfeed start <server>` and `/events start <server>`",
+                    inline=False
+                )
+                embed.add_field(
+                    name="Premium Features",
+                    value="Upgrade to premium for advanced statistics, economy features, and custom themes. Use `/premium features` to learn more.",
+                    inline=False
+                )
+                embed.set_footer(text="Select a category to see detailed command information")
             
             # Create and send view with dropdown
             view = CommandsView(self.bot, interaction.user.id, guild_id)
@@ -259,7 +299,12 @@ class Help(commands.Cog):
                 try:
                     embed = await embed  # Await the coroutine
                 except Exception as e:
-                    self.logger.error(f"Error awaiting embed coroutine: {e}")
+                    # Use bot.logger if self.logger is not defined
+                    logger = getattr(self, 'logger', getattr(self.bot, 'logger', None))
+                    if logger:
+                        logger.error(f"Error awaiting embed coroutine: {e}")
+                    else:
+                        print(f"Error awaiting embed coroutine: {e}")
                     # Create a simple error embed as fallback
                     embed = discord.Embed(
                         title="⚠️ Error Loading Help",
@@ -271,7 +316,12 @@ class Help(commands.Cog):
             await interaction.followup.send(embed=embed, view=view)
             
         except Exception as e:
-            self.logger.error(f"Unhandled error in commands command: {e}", exc_info=True)
+            # Use bot.logger if self.logger is not defined
+            logger = getattr(self, 'logger', getattr(self.bot, 'logger', None))
+            if logger:
+                logger.error(f"Unhandled error in commands command: {e}", exc_info=True)
+            else:
+                print(f"Unhandled error in commands command: {e}")
             # Try to send a basic error message
             try:
                 await interaction.followup.send("An error occurred processing your request. Please try again later.")
