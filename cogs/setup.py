@@ -1467,11 +1467,11 @@ class Setup(commands.Cog):
 
             # Create SFTP client
             sftp_client = SFTPClient(
-                host=server.sftp_host,
-                port=server.sftp_port,
-                username=server.sftp_username,
-                password=server.sftp_password,
-                server_id=server.id
+                hostname=server.hostname,
+                port=server.port,
+                username=server.username,
+                password=server.password,
+                server_id=server.server_id
             )
 
             # Connect to SFTP
