@@ -1,13 +1,16 @@
 """
-Gambling utilities for blackjack and slots games
+Gambling utilities for blackjack, slots, and roulette games
 """
 import random
 import asyncio
+import logging
 from enum import Enum, auto
-from typing import List, Dict, Any, Tuple, Optional
+from typing import List, Dict, Any, Tuple, Optional, Union
 import discord
-from discord.ui import View, Button
-from discord import ButtonStyle
+from discord.ui import View, Button, Select
+from discord import ButtonStyle, SelectOption
+
+logger = logging.getLogger(__name__)
 
 class CardSuit(Enum):
     HEARTS = auto()
@@ -325,6 +328,487 @@ def create_blackjack_embed(game_state: Dict[str, Any]) -> discord.Embed:
         
         embed.add_field(name="Result", value=result_text, inline=False)
     
+    return embed
+
+class RouletteGame:
+    """Roulette game implementation"""
+    
+    # Roulette wheel numbers (European style with single 0)
+    WHEEL_NUMBERS = list(range(0, 37))  # 0-36
+    
+    # Number colors
+    RED_NUMBERS = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]
+    BLACK_NUMBERS = [2, 4, 6, 8, 10, 11, 13, 15, 17, 20, 22, 24, 26, 28, 29, 31, 33, 35]
+    # 0 is green
+    
+    # Bet types and payouts
+    BET_TYPES = {
+        "straight": {"description": "Single number", "payout": 35},
+        "split": {"description": "Two adjacent numbers", "payout": 17},
+        "street": {"description": "Three numbers in a row", "payout": 11},
+        "corner": {"description": "Four numbers in a square", "payout": 8},
+        "six_line": {"description": "Six numbers (two rows)", "payout": 5},
+        "column": {"description": "12 numbers (a column)", "payout": 2},
+        "dozen": {"description": "12 numbers (1-12, 13-24, 25-36)", "payout": 2},
+        "red": {"description": "Red numbers", "payout": 1},
+        "black": {"description": "Black numbers", "payout": 1},
+        "even": {"description": "Even numbers", "payout": 1},
+        "odd": {"description": "Odd numbers", "payout": 1},
+        "low": {"description": "Low numbers (1-18)", "payout": 1},
+        "high": {"description": "High numbers (19-36)", "payout": 1}
+    }
+    
+    def __init__(self, player_id: str):
+        self.player_id = player_id
+        self.message = None
+        self.bet_amount = 0
+        self.bet_type = None
+        self.bet_value = None
+        self.last_result = None
+        self.history = []  # Last 10 spins
+    
+    def place_bet(self, amount: int, bet_type: str, bet_value: Any) -> bool:
+        """Place a bet on the roulette table
+        
+        Args:
+            amount: Bet amount
+            bet_type: Type of bet (straight, red, black, etc.)
+            bet_value: Value to bet on (number or None for color bets)
+            
+        Returns:
+            True if bet was placed successfully, False otherwise
+        """
+        if bet_type not in self.BET_TYPES:
+            return False
+            
+        self.bet_amount = amount
+        self.bet_type = bet_type
+        self.bet_value = bet_value
+        return True
+    
+    def spin(self) -> Dict[str, Any]:
+        """Spin the roulette wheel
+        
+        Returns:
+            Result data dictionary
+        """
+        # Randomly select a number
+        result = random.choice(self.WHEEL_NUMBERS)
+        
+        # Determine color
+        if result == 0:
+            color = "green"
+        elif result in self.RED_NUMBERS:
+            color = "red"
+        else:
+            color = "black"
+            
+        # Determine outcome
+        won = False
+        payout_multiplier = 0
+        
+        if self.bet_type == "straight":
+            won = int(self.bet_value) == result
+            payout_multiplier = self.BET_TYPES["straight"]["payout"]
+        
+        elif self.bet_type == "red":
+            won = color == "red"
+            payout_multiplier = self.BET_TYPES["red"]["payout"]
+            
+        elif self.bet_type == "black":
+            won = color == "black"
+            payout_multiplier = self.BET_TYPES["black"]["payout"]
+            
+        elif self.bet_type == "even":
+            won = result != 0 and result % 2 == 0
+            payout_multiplier = self.BET_TYPES["even"]["payout"]
+            
+        elif self.bet_type == "odd":
+            won = result != 0 and result % 2 == 1
+            payout_multiplier = self.BET_TYPES["odd"]["payout"]
+            
+        elif self.bet_type == "low":
+            won = 1 <= result <= 18
+            payout_multiplier = self.BET_TYPES["low"]["payout"]
+            
+        elif self.bet_type == "high":
+            won = 19 <= result <= 36
+            payout_multiplier = self.BET_TYPES["high"]["payout"]
+            
+        elif self.bet_type == "dozen":
+            first_dozen = 1 <= result <= 12
+            second_dozen = 13 <= result <= 24
+            third_dozen = 25 <= result <= 36
+            
+            if self.bet_value == "1st" and first_dozen:
+                won = True
+            elif self.bet_value == "2nd" and second_dozen:
+                won = True
+            elif self.bet_value == "3rd" and third_dozen:
+                won = True
+                
+            payout_multiplier = self.BET_TYPES["dozen"]["payout"]
+            
+        elif self.bet_type == "column":
+            first_col = result % 3 == 1 and result != 0
+            second_col = result % 3 == 2 and result != 0
+            third_col = result % 3 == 0 and result != 0
+            
+            if self.bet_value == "1st" and first_col:
+                won = True
+            elif self.bet_value == "2nd" and second_col:
+                won = True
+            elif self.bet_value == "3rd" and third_col:
+                won = True
+                
+            payout_multiplier = self.BET_TYPES["column"]["payout"]
+        
+        # Update history
+        self.history.append(result)
+        if len(self.history) > 10:
+            self.history = self.history[-10:]
+            
+        # Calculate winnings
+        winnings = 0
+        if won:
+            winnings = self.bet_amount * payout_multiplier
+            
+        # Create result
+        self.last_result = {
+            "number": result,
+            "color": color,
+            "won": won,
+            "payout_multiplier": payout_multiplier,
+            "winnings": winnings,
+            "bet_amount": self.bet_amount,
+            "bet_type": self.bet_type,
+            "bet_value": self.bet_value,
+            "net_gain": winnings if won else -self.bet_amount
+        }
+        
+        return self.last_result
+
+class RouletteView(View):
+    """Interactive view for roulette game"""
+    
+    def __init__(self, player_id: str, economy, bet: int = 10):
+        super().__init__(timeout=300)  # 5 minutes timeout
+        self.player_id = player_id
+        self.economy = economy
+        self.game = RouletteGame(player_id)
+        self.bet = bet
+        self.message = None
+        self.add_bet_type_select()
+        
+    def add_bet_type_select(self):
+        """Add the bet type selection dropdown"""
+        options = [
+            SelectOption(label="Red", value="red", description="Bet on red numbers", emoji="🔴"),
+            SelectOption(label="Black", value="black", description="Bet on black numbers", emoji="⚫"),
+            SelectOption(label="Even", value="even", description="Bet on even numbers", emoji="2️⃣"),
+            SelectOption(label="Odd", value="odd", description="Bet on odd numbers", emoji="1️⃣"),
+            SelectOption(label="Low (1-18)", value="low", description="Bet on numbers 1-18", emoji="⬇️"),
+            SelectOption(label="High (19-36)", value="high", description="Bet on numbers 19-36", emoji="⬆️"),
+            SelectOption(label="First Dozen (1-12)", value="dozen:1st", description="Bet on numbers 1-12", emoji="1️⃣"),
+            SelectOption(label="Second Dozen (13-24)", value="dozen:2nd", description="Bet on numbers 13-24", emoji="2️⃣"),
+            SelectOption(label="Third Dozen (25-36)", value="dozen:3rd", description="Bet on numbers 25-36", emoji="3️⃣"),
+            SelectOption(label="Straight (Single Number)", value="straight", description="Bet on a single number", emoji="🎯")
+        ]
+        
+        bet_select = Select(
+            placeholder="Select bet type",
+            options=options,
+            custom_id="bet_type"
+        )
+        
+        bet_select.callback = self.bet_type_selected
+        self.add_item(bet_select)
+        
+    async def on_timeout(self):
+        """Handle view timeout by disabling buttons"""
+        self.disable_all_items()
+        if self.message:
+            try:
+                embed = discord.Embed(
+                    title="🎲 Roulette 🎲",
+                    description="Game timed out due to inactivity.",
+                    color=discord.Color.dark_gray()
+                )
+                balance = await self.economy.get_balance()
+                embed.add_field(name="Your Balance", value=f"{balance} credits", inline=False)
+                await self.message.edit(embed=embed, view=None)
+            except Exception as e:
+                logger.error(f"Error handling roulette timeout: {e}")
+    
+    async def bet_type_selected(self, interaction: discord.Interaction):
+        """Handle bet type selection"""
+        # Check if it's the player's game
+        if str(interaction.user.id) != self.player_id:
+            await interaction.response.send_message("This isn't your game!", ephemeral=True)
+            return
+            
+        value = interaction.data["values"][0]
+        
+        # Handle different bet types
+        if ":" in value:
+            bet_type, bet_value = value.split(":")
+        else:
+            bet_type = value
+            bet_value = None
+            
+        # For straight bets, we need to show a number input modal
+        if bet_type == "straight":
+            await interaction.response.send_modal(
+                RouletteNumberModal(self, self.bet)
+            )
+            return
+            
+        # Place the bet
+        self.game.place_bet(self.bet, bet_type, bet_value)
+        
+        # Create and update embed
+        embed = create_roulette_embed(self.game, bet_placed=True)
+        self.disable_all_items()
+        
+        # Add spin button
+        spin_button = Button(style=ButtonStyle.primary, label="Spin", custom_id="spin")
+        spin_button.callback = self.spin_wheel
+        self.add_item(spin_button)
+        
+        await interaction.response.edit_message(embed=embed, view=self)
+    
+    async def spin_wheel(self, interaction: discord.Interaction):
+        """Handle spin button click"""
+        # Check if it's the player's game
+        if str(interaction.user.id) != self.player_id:
+            await interaction.response.send_message("This isn't your game!", ephemeral=True)
+            return
+            
+        # Check if player has enough credits
+        balance = await self.economy.get_balance()
+        if balance < self.game.bet_amount:
+            await interaction.response.send_message(
+                f"You don't have enough credits! You need {self.game.bet_amount} credits to play.",
+                ephemeral=True
+            )
+            return
+            
+        # Remove the bet amount
+        await self.economy.remove_currency(self.game.bet_amount, "roulette_bet")
+        
+        # Spin the wheel
+        result = self.game.spin()
+        
+        # Create embed with results
+        embed = create_roulette_embed(self.game, spin_result=True)
+        
+        # Update player economy
+        if result["won"]:
+            await self.economy.add_currency(
+                result["winnings"],
+                "roulette_win",
+                {"game": "roulette", "bet_type": self.game.bet_type}
+            )
+            await self.economy.update_gambling_stats("roulette", True, result["winnings"])
+        else:
+            await self.economy.update_gambling_stats("roulette", False, self.game.bet_amount)
+            
+        # Get new balance
+        new_balance = await self.economy.get_balance()
+        embed.add_field(name="New Balance", value=f"{new_balance} credits", inline=False)
+        
+        # Add play again button
+        self.clear_items()
+        play_again = Button(style=ButtonStyle.success, label="Play Again", custom_id="play_again")
+        play_again.callback = self.play_again
+        self.add_item(play_again)
+        
+        await interaction.response.edit_message(embed=embed, view=self)
+    
+    async def play_again(self, interaction: discord.Interaction):
+        """Handle play again button click"""
+        # Check if it's the player's game
+        if str(interaction.user.id) != self.player_id:
+            await interaction.response.send_message("This isn't your game!", ephemeral=True)
+            return
+            
+        # Reset game but keep history
+        history = self.game.history
+        self.game = RouletteGame(self.player_id)
+        self.game.history = history
+        
+        # Clear and add items
+        self.clear_items()
+        self.add_bet_type_select()
+        
+        # Create embed
+        embed = create_roulette_embed(self.game)
+        
+        await interaction.response.edit_message(embed=embed, view=self)
+    
+    def disable_all_items(self):
+        """Disable all buttons and selects"""
+        for item in self.children:
+            item.disabled = True
+
+class RouletteNumberModal(discord.ui.Modal):
+    """Modal for entering a number for straight bets"""
+    
+    def __init__(self, view: RouletteView, bet: int):
+        super().__init__(title="Choose a Number (0-36)")
+        self.view = view
+        self.bet = bet
+        
+        # Add the input field
+        self.number_input = discord.ui.TextInput(
+            label="Enter a number between 0 and 36",
+            placeholder="0-36",
+            required=True,
+            min_length=1,
+            max_length=2
+        )
+        self.add_item(self.number_input)
+    
+    async def on_submit(self, interaction: discord.Interaction):
+        """Handle form submission"""
+        try:
+            number = int(self.number_input.value)
+            if 0 <= number <= 36:
+                # Place the bet
+                self.view.game.place_bet(self.bet, "straight", number)
+                
+                # Create and update embed
+                embed = create_roulette_embed(self.view.game, bet_placed=True)
+                self.view.disable_all_items()
+                
+                # Add spin button
+                spin_button = Button(style=ButtonStyle.primary, label="Spin", custom_id="spin")
+                spin_button.callback = self.view.spin_wheel
+                self.view.add_item(spin_button)
+                
+                await interaction.response.edit_message(embed=embed, view=self.view)
+            else:
+                await interaction.response.send_message(
+                    "Please enter a valid number between 0 and 36!",
+                    ephemeral=True
+                )
+        except ValueError:
+            await interaction.response.send_message(
+                "Please enter a valid number!",
+                ephemeral=True
+            )
+
+def create_roulette_embed(game: RouletteGame, bet_placed: bool = False, spin_result: bool = False) -> discord.Embed:
+    """Create an embed for roulette game
+    
+    Args:
+        game: Roulette game instance
+        bet_placed: Whether a bet has been placed
+        spin_result: Whether to show spin results
+        
+    Returns:
+        Embed object
+    """
+    if spin_result and game.last_result:
+        # Show spin results
+        result = game.last_result
+        
+        # Determine color based on result
+        if result["color"] == "red":
+            embed_color = discord.Color.red()
+            number_display = f"🔴 {result['number']}"
+        elif result["color"] == "black":
+            embed_color = discord.Color.dark_gray()
+            number_display = f"⚫ {result['number']}"
+        else:  # Green for 0
+            embed_color = discord.Color.green()
+            number_display = f"🟢 {result['number']}"
+            
+        embed = discord.Embed(
+            title="🎲 Roulette Results 🎲",
+            description=f"The ball lands on {number_display}!",
+            color=embed_color
+        )
+        
+        # Bet details
+        bet_display = f"{result['bet_type'].title()}"
+        if result['bet_value'] is not None:
+            if result['bet_type'] == 'straight':
+                bet_display += f" ({result['bet_value']})"
+            else:
+                bet_display += f" ({result['bet_value']})"
+                
+        embed.add_field(
+            name="Your Bet",
+            value=f"{bet_display}: {result['bet_amount']} credits",
+            inline=False
+        )
+        
+        # Win/loss info
+        if result["won"]:
+            win_text = f"🎉 You won {result['winnings']} credits! 🎉"
+            win_text += f"\nPayout: {result['payout_multiplier']}:1"
+            embed.add_field(name="Result", value=win_text, inline=False)
+        else:
+            embed.add_field(name="Result", value="❌ You lost your bet!", inline=False)
+            
+        # Show recent history
+        if game.history:
+            history_text = " ".join([f"{num}" for num in game.history])
+            embed.add_field(name="Recent Numbers", value=history_text, inline=False)
+            
+    elif bet_placed:
+        # Show bet confirmation
+        embed = discord.Embed(
+            title="🎲 Roulette 🎲",
+            description="Your bet has been placed!",
+            color=discord.Color.gold()
+        )
+        
+        # Bet details
+        bet_display = f"{game.bet_type.title()}"
+        if game.bet_value is not None:
+            if game.bet_type == 'straight':
+                bet_display += f" ({game.bet_value})"
+            else:
+                bet_display += f" ({game.bet_value})"
+                
+        embed.add_field(
+            name="Your Bet",
+            value=f"{bet_display}: {game.bet_amount} credits",
+            inline=False
+        )
+        
+        embed.add_field(
+            name="Ready?",
+            value="Click 'Spin' to spin the wheel!",
+            inline=False
+        )
+        
+        # Show recent history
+        if game.history:
+            history_text = " ".join([f"{num}" for num in game.history])
+            embed.add_field(name="Recent Numbers", value=history_text, inline=False)
+            
+    else:
+        # Initial embed
+        embed = discord.Embed(
+            title="🎲 Roulette 🎲",
+            description=f"Place your bet: {game.bet_amount} credits",
+            color=discord.Color.blue()
+        )
+        
+        embed.add_field(
+            name="How to Play",
+            value="Select a bet type from the dropdown menu below.",
+            inline=False
+        )
+        
+        # Show recent history
+        if game.history:
+            history_text = " ".join([f"{num}" for num in game.history])
+            embed.add_field(name="Recent Numbers", value=history_text, inline=False)
+            
     return embed
 
 class SlotMachine:

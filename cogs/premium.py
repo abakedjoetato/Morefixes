@@ -27,6 +27,75 @@ class Premium(commands.Cog):
         if ctx.invoked_subcommand is None:
             await ctx.send("Please specify a subcommand.")
     
+    @premium.command(name="tiers", description="View available premium tiers and features")
+    async def tiers(self, ctx):
+        """View available premium tiers and features"""
+        try:
+            # Get guild model for themed embed
+            guild_data = None
+            guild_model = None
+            try:
+                guild_data = await self.bot.db.guilds.find_one({"guild_id": ctx.guild.id})
+                if guild_data:
+                    guild_model = Guild(self.bot.db, guild_data)
+            except Exception as e:
+                logger.warning(f"Error getting guild model: {e}")
+            
+            # Create base embed
+            embed = EmbedBuilder.create_base_embed(
+                "Premium Tiers",
+                "View available premium tiers and their features",
+                guild=guild_model
+            )
+            
+            # Add info for each tier
+            for tier_id, tier_info in PREMIUM_TIERS.items():
+                # Format tier name
+                tier_name = f"Tier {tier_id}"
+                if tier_id == 0:
+                    tier_name += " (Free)"
+                
+                # Format features list
+                features = tier_info.get("features", [])
+                max_servers = tier_info.get("max_servers", 0)
+                
+                feature_display = {
+                    "killfeed": "Killfeed",
+                    "events": "Events & Missions",
+                    "connections": "Player Connections",
+                    "stats": "Statistics & Leaderboards",
+                    "custom_embeds": "Custom Embeds",
+                    "economy": "Economy System",
+                    "gambling": "Gambling Games",
+                    "bounty": "Auto-Bounty System"
+                }
+                
+                feature_list = [f"✅ {feature_display.get(f, f)}" for f in features]
+                
+                # Create feature text
+                feature_text = "**Features:**\n" + "\n".join(feature_list)
+                feature_text += f"\n\n**Max Servers:** {max_servers}"
+                
+                # Add field for this tier
+                embed.add_field(
+                    name=tier_name,
+                    value=feature_text,
+                    inline=False
+                )
+            
+            # Add footer note
+            embed.set_footer(text="Contact the bot owner to upgrade premium tier")
+            
+            await ctx.send(embed=embed)
+            
+        except Exception as e:
+            logger.error(f"Error in premium tiers command: {e}")
+            embed = EmbedBuilder.create_error_embed(
+                "Error",
+                f"Failed to show premium tiers: {e}"
+            )
+            await ctx.send(embed=embed)
+    
     @premium.command(name="status", description="Check premium status of this guild")
     async def status(self, ctx):
         """Check the premium status of this guild"""

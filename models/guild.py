@@ -216,3 +216,21 @@ class Guild(BaseModel):
     async def get_by_id(cls, db, guild_id):
         """Get a guild by its Discord ID (alias for get_by_guild_id)"""
         return await cls.get_by_guild_id(db, str(guild_id))
+        
+    def check_feature_access(self, feature_name: str) -> bool:
+        """Check if this guild has access to a premium feature
+        
+        Args:
+            feature_name: Name of the feature to check
+            
+        Returns:
+            True if the guild has access to the feature, False otherwise
+        """
+        from config import PREMIUM_TIERS
+        
+        # Get features for current tier
+        tier_info = PREMIUM_TIERS.get(self.premium_tier, {})
+        features = tier_info.get("features", [])
+        
+        # Check if feature is in allowed features
+        return feature_name in features

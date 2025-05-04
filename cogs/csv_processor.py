@@ -21,6 +21,7 @@ from utils.csv_parser import CSVParser
 from utils.sftp import SFTPManager
 from utils.embed_builder import EmbedBuilder
 from utils.helpers import has_admin_permission
+from utils.parser_utils import parser_coordinator, normalize_event_data, categorize_event
 
 logger = logging.getLogger(__name__)
 
@@ -174,9 +175,38 @@ class CSVProcessorCog(commands.Cog):
                         
                         if content:
                             # Process content
-                            processed, errors = await self.csv_parser.process_and_update_rivalries(
-                                server_id, content.decode('utf-8')
-                            )
+                            events = self.csv_parser.parse_csv_data(content.decode('utf-8'))
+                            
+                            # Normalize and deduplicate events
+                            processed_count = 0
+                            errors = []
+                            
+                            for event in events:
+                                try:
+                                    # Normalize event data
+                                    normalized_event = normalize_event_data(event)
+                                    
+                                    # Add server ID
+                                    normalized_event["server_id"] = server_id
+                                    
+                                    # Check if this is a duplicate event
+                                    if not parser_coordinator.is_duplicate_event(normalized_event):
+                                        # Update timestamp in coordinator
+                                        if "timestamp" in normalized_event and isinstance(normalized_event["timestamp"], datetime):
+                                            parser_coordinator.update_csv_timestamp(server_id, normalized_event["timestamp"])
+                                        
+                                        # Process event based on type
+                                        event_type = categorize_event(normalized_event)
+                                        
+                                        if event_type in ["kill", "suicide"]:
+                                            # Process kill event
+                                            await self._process_kill_event(normalized_event)
+                                            processed_count += 1
+                                    
+                                except Exception as e:
+                                    errors.append(str(e))
+                            
+                            processed = processed_count
                             
                             events_processed += processed
                             files_processed += 1
@@ -364,6 +394,132 @@ class CSVProcessorCog(commands.Cog):
             )
         
         await interaction.followup.send(embed=embed, ephemeral=True)
+
+    async def _process_kill_event(self, event: Dict[str, Any]) -> bool:
+        """Process a kill event and update player stats and rivalries
+        
+        Args:
+            event: Normalized kill event dictionary
+            
+        Returns:
+            bool: True if processed successfully, False otherwise
+        """
+        try:
+            server_id = event.get("server_id")
+            if not server_id:
+                logger.warning("Kill event missing server_id, skipping")
+                return False
+                
+            # Get kill details
+            killer_id = event.get("killer_id", "")
+            killer_name = event.get("killer_name", "Unknown")
+            victim_id = event.get("victim_id", "")
+            victim_name = event.get("victim_name", "Unknown")
+            weapon = event.get("weapon", "Unknown")
+            distance = event.get("distance", 0)
+            timestamp = event.get("timestamp", datetime.utcnow())
+            
+            # Ensure timestamp is datetime
+            if isinstance(timestamp, str):
+                try:
+                    timestamp = datetime.fromisoformat(timestamp)
+                except ValueError:
+                    timestamp = datetime.utcnow()
+            
+            # Check if this is a suicide
+            is_suicide = False
+            if killer_id and victim_id and killer_id == victim_id:
+                is_suicide = True
+            
+            # Check if we have the necessary player IDs
+            if not victim_id:
+                logger.warning("Kill event missing victim_id, skipping")
+                return False
+            
+            # For suicides, we only need to update the victim's stats
+            if is_suicide:
+                # Get victim player or create if not exists
+                victim = await self._get_or_create_player(server_id, victim_id, victim_name)
+                
+                # Update suicide count
+                await victim.update_stats(self.bot.db, kills=0, deaths=0, suicides=1)
+                
+                return True
+            
+            # For regular kills, we need both killer and victim
+            if not killer_id:
+                logger.warning("Kill event missing killer_id for non-suicide, skipping")
+                return False
+            
+            # Get killer and victim players, or create if not exist
+            killer = await self._get_or_create_player(server_id, killer_id, killer_name)
+            victim = await self._get_or_create_player(server_id, victim_id, victim_name)
+            
+            # Update kill/death stats
+            await killer.update_stats(self.bot.db, kills=1, deaths=0)
+            await victim.update_stats(self.bot.db, kills=0, deaths=1)
+            
+            # Update rivalries
+            from models.rivalry import Rivalry
+            await Rivalry.record_kill(server_id, killer_id, victim_id, weapon, "")
+            
+            # Update nemesis/prey relationships
+            await killer.update_nemesis_and_prey(self.bot.db)
+            await victim.update_nemesis_and_prey(self.bot.db)
+            
+            # Insert kill event into database
+            kill_doc = {
+                "server_id": server_id,
+                "killer_id": killer_id,
+                "killer_name": killer_name,
+                "victim_id": victim_id,
+                "victim_name": victim_name,
+                "weapon": weapon,
+                "distance": distance,
+                "timestamp": timestamp,
+                "is_suicide": is_suicide
+            }
+            
+            await self.bot.db.kills.insert_one(kill_doc)
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error processing kill event: {e}")
+            return False
+    
+    async def _get_or_create_player(self, server_id: str, player_id: str, player_name: str):
+        """Get player by ID or create if not exists
+        
+        Args:
+            server_id: Server ID
+            player_id: Player ID
+            player_name: Player name
+            
+        Returns:
+            Player object
+        """
+        from models.player import Player
+        
+        # Check if player exists
+        player = await Player.get_by_player_id(self.bot.db, player_id)
+        
+        if not player:
+            # Create new player
+            player = Player(
+                player_id=player_id,
+                server_id=server_id,
+                name=player_name,
+                display_name=player_name,
+                last_seen=datetime.utcnow(),
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
+            
+            # Insert into database
+            await self.bot.db.players.insert_one(player.__dict__)
+        
+        return player
 
 async def setup(bot: commands.Bot) -> None:
     """Set up the CSV processor cog"""

@@ -1214,6 +1214,110 @@ class Economy(commands.Cog):
                 f"An error occurred while viewing economy statistics: {e}"
             , guild=guild_model)
             await ctx.send(embed=embed)
+            
+    @gambling.command(name="roulette", description="Play roulette")
+    @app_commands.describe(
+        server_id="Select a server by name to play on",
+        bet="The amount to bet (default: 10)"
+    )
+    @app_commands.autocomplete(server_id=server_id_autocomplete)
+    async def roulette(self, ctx, server_id: str, bet: int = 10):
+        """Play roulette"""
+        try:
+            # Get guild model for themed embed
+            guild_data = None
+            guild_model = None
+            try:
+                guild_data = await self.bot.db.guilds.find_one({"guild_id": ctx.guild.id})
+                if guild_data:
+                    guild_model = Guild(self.bot.db, guild_data)
+            except Exception as e:
+                logger.warning(f"Error getting guild model: {e}")
+                
+            # Check if the guild has access to gambling feature
+            guild = await Guild.get_by_id(self.bot.db, ctx.guild.id)
+            if not guild.check_feature_access("gambling"):
+                embed = EmbedBuilder.create_error_embed(
+                    "Premium Feature",
+                    "Gambling games are only available to guilds with Tier 2 or higher premium status. "
+                    "Use `/premium status` to check your current tier and `/premium upgrade` to request an upgrade."
+                , guild=guild_model)
+                await ctx.send(embed=embed)
+                return
+                
+            # Validate server ID
+            server = await get_server(self.bot, ctx.guild.id, server_id)
+            if not server:
+                embed = EmbedBuilder.create_error_embed(
+                    "Invalid Server",
+                    f"Could not find server with ID '{server_id}'. "
+                    f"Please use `/server list` to see available servers."
+                , guild=guild_model)
+                await ctx.send(embed=embed)
+                return
+                
+            # Validate bet amount
+            if bet <= 0:
+                embed = EmbedBuilder.create_error_embed(
+                    "Invalid Bet",
+                    "Bet amount must be greater than 0."
+                , guild=guild_model)
+                await ctx.send(embed=embed)
+                return
+                
+            # Create economy instance for this player in this server
+            economy = await PlayerEconomy.get_or_create(
+                self.bot.db,
+                ctx.guild.id,
+                ctx.author.id,
+                server["_id"]
+            )
+            
+            # Check if player has enough currency
+            balance = await economy.get_balance()
+            if balance < bet:
+                embed = EmbedBuilder.create_error_embed(
+                    "Insufficient Funds",
+                    f"You don't have enough credits to place this bet. "
+                    f"Your current balance is {balance} credits."
+                , guild=guild_model)
+                await ctx.send(embed=embed)
+                return
+                
+            # Create roulette game
+            from utils.gambling import RouletteView
+            view = RouletteView(str(ctx.author.id), economy, bet)
+            
+            # Send initial embed
+            embed = discord.Embed(
+                title="🎲 Roulette 🎲",
+                description=f"Place your bet: {bet} credits",
+                color=discord.Color.blue()
+            )
+            
+            embed.add_field(
+                name="Your Balance",
+                value=f"{balance} credits",
+                inline=False
+            )
+            
+            embed.add_field(
+                name="How to Play",
+                value="Select a bet type from the dropdown menu.",
+                inline=False
+            )
+            
+            # Send message with view
+            message = await ctx.send(embed=embed, view=view)
+            view.message = message
+            
+        except Exception as e:
+            logger.error(f"Error playing roulette: {e}", exc_info=True)
+            embed = EmbedBuilder.create_error_embed(
+                "Error",
+                f"An error occurred while playing roulette: {e}"
+            , guild=guild_model)
+            await ctx.send(embed=embed)
 
     @classmethod
     async def get_richest_players(cls, db, server_id: str, limit: int = 10) -> List[Dict[str, Any]]:

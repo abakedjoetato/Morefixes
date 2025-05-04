@@ -9,6 +9,8 @@ from typing import Dict, Any, Optional, ClassVar, List
 import uuid
 
 from models.base_model import BaseModel
+# Import inside methods to avoid circular imports
+# from models.rivalry import Rivalry
 
 logger = logging.getLogger(__name__)
 
@@ -265,3 +267,141 @@ class Player(BaseModel):
         if self.deaths == 0:
             return self.kills
         return self.kills / self.deaths
+        
+    async def get_rivalries(self, db, min_kills: int = 3) -> List[Dict[str, Any]]:
+        """Get player rivalries with a minimum kill threshold
+        
+        Retrieves all rivalries where this player has participated and processes them according
+        to a minimum number of kills threshold (default 3). Only rivalries where either player
+        has reached the minimum kills will be included.
+        
+        Args:
+            db: Database connection
+            min_kills: Minimum kills threshold (default 3)
+            
+        Returns:
+            List of rivalry statistics dictionaries
+        """
+        from models.rivalry import Rivalry
+        
+        # Get all rivalries for this player
+        rivalries = await Rivalry.get_for_player(db, self.server_id, self.player_id)
+        
+        # Filter and process rivalries that meet the minimum kill threshold
+        valid_rivalries = []
+        
+        for rivalry in rivalries:
+            # Only include rivalries where at least one player has reached the min_kills threshold
+            if rivalry.player1_kills >= min_kills or rivalry.player2_kills >= min_kills:
+                # Get rivalry stats from this player's perspective
+                rivalry_stats = rivalry.get_stats_for_player(self.player_id)
+                rivalry_stats["rivalry_id"] = rivalry.id
+                
+                # Add rival info
+                if self.player_id == rivalry.player1_id:
+                    rivalry_stats["rival_id"] = rivalry.player2_id
+                    rivalry_stats["rival_name"] = rivalry.player2_name
+                else:
+                    rivalry_stats["rival_id"] = rivalry.player1_id
+                    rivalry_stats["rival_name"] = rivalry.player1_name
+                
+                valid_rivalries.append(rivalry_stats)
+        
+        # Sort by total_kills descending
+        valid_rivalries.sort(key=lambda r: r["total_kills"], reverse=True)
+        
+        return valid_rivalries
+        
+    async def get_top_rivalries(self, db, limit: int = 5, min_kills: int = 3) -> List[Dict[str, Any]]:
+        """Get player's top rivalries with a minimum kill threshold
+        
+        Retrieves the player's top rivalries sorted by total kills and filtered 
+        by a minimum kill threshold.
+        
+        Args:
+            db: Database connection
+            limit: Maximum number of rivalries to return
+            min_kills: Minimum kills threshold (default 3)
+            
+        Returns:
+            List of top rivalry statistics dictionaries
+        """
+        rivalries = await self.get_rivalries(db, min_kills)
+        
+        # Return top n rivalries
+        return rivalries[:limit]
+    
+    async def update_nemesis_and_prey(self, db, min_kills: int = 3) -> bool:
+        """Update player's nemesis and prey based on rivalries
+        
+        Uses the rivalry data to determine the player's nemesis (player killed by most)
+        and prey (player killed most), with a minimum kill threshold.
+        
+        Args:
+            db: Database connection
+            min_kills: Minimum kills threshold (default 3)
+            
+        Returns:
+            True if updated successfully, False otherwise
+        """
+        rivalries = await self.get_rivalries(db, min_kills)
+        
+        if not rivalries:
+            return False
+            
+        # Find nemesis (opponent with most kills against this player)
+        # and prey (opponent this player has killed the most)
+        nemesis = None
+        prey = None
+        
+        for rivalry in rivalries:
+            # Check for potential nemesis (most deaths to this opponent)
+            if nemesis is None or rivalry["deaths"] > nemesis["deaths"]:
+                # Only consider as nemesis if they've killed this player at least min_kills times
+                if rivalry["deaths"] >= min_kills:
+                    nemesis = {
+                        "id": rivalry["rival_id"],
+                        "name": rivalry["rival_name"],
+                        "deaths": rivalry["deaths"]
+                    }
+            
+            # Check for potential prey (most kills against this opponent)
+            if prey is None or rivalry["kills"] > prey["kills"]:
+                # Only consider as prey if this player has killed them at least min_kills times
+                if rivalry["kills"] >= min_kills:
+                    prey = {
+                        "id": rivalry["rival_id"],
+                        "name": rivalry["rival_name"],
+                        "kills": rivalry["kills"]
+                    }
+        
+        # Update nemesis and prey
+        update_dict = {"updated_at": datetime.utcnow()}
+        updated = False
+        
+        if nemesis:
+            self.nemesis_id = nemesis["id"]
+            self.nemesis_name = nemesis["name"]
+            update_dict["nemesis_id"] = nemesis["id"]
+            update_dict["nemesis_name"] = nemesis["name"]
+            updated = True
+            
+        if prey:
+            self.prey_id = prey["id"]
+            self.prey_name = prey["name"]
+            update_dict["prey_id"] = prey["id"]
+            update_dict["prey_name"] = prey["name"]
+            updated = True
+            
+        if updated:
+            self.updated_at = update_dict["updated_at"]
+            
+            # Update in database
+            result = await db.players.update_one(
+                {"player_id": self.player_id},
+                {"$set": update_dict}
+            )
+            
+            return result.modified_count > 0
+            
+        return False
