@@ -26,7 +26,8 @@ class SFTPClient:
         username: str,
         password: str,
         timeout: int = 30,
-        max_retries: int = 3
+        max_retries: int = 3,
+        server_id: Optional[str] = None
     ):
         """Initialize SFTP handler
         
@@ -48,6 +49,7 @@ class SFTPClient:
         self._ssh_client = None
         self._connected = False
         self._connection_attempts = 0
+        self.server_id = server_id
         
     async def connect(self) -> bool:
         """Connect to SFTP server
@@ -365,5 +367,31 @@ class SFTPClient:
             logger.error(f"Failed to process file {remote_path}: {e}")
             return []
             
+async def get_log_file(self) -> Optional[str]:
+        """Get the game log file path
+        
+        Returns:
+            Optional[str]: Path to log file if found, None otherwise
+        """
+        await self.ensure_connected()
+        
+        try:
+            # Construct base path to logs
+            server_dir = f"{self.hostname.split(':')[0]}_{self.server_id}"
+            log_path = os.path.join(".", server_dir, "actual1", "logs")
+            
+            # Find log file
+            log_files = await self.find_files_by_pattern(log_path, r"\.log$")
+            
+            if log_files:
+                # Return most recent log file
+                return sorted(log_files)[-1]
+                
+            return None
+            
+        except Exception as e:
+            logger.error(f"Failed to get log file: {e}")
+            return None
+
 # Add SFTPManager as alias for SFTPClient to maintain backward compatibility
 SFTPManager = SFTPClient
