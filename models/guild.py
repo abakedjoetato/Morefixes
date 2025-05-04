@@ -23,6 +23,7 @@ class Guild(BaseModel):
         premium_tier: int = 0,
         admin_role_id: Optional[str] = None,
         admin_users: Optional[List[str]] = None,
+        servers: Optional[List[Dict[str, Any]]] = None,
         color_primary: str = "#7289DA",
         color_secondary: str = "#FFFFFF",
         color_accent: str = "#23272A",
@@ -44,10 +45,87 @@ class Guild(BaseModel):
         self.created_at = created_at or datetime.utcnow()
         self.updated_at = updated_at or datetime.utcnow()
         
+        self.servers = servers or []
+        
         # Add any additional guild attributes
         for key, value in kwargs.items():
             if not hasattr(self, key):
                 setattr(self, key, value)
+                
+    async def add_server(self, server_data: Dict[str, Any]) -> bool:
+        """Add a server to the guild
+        
+        Args:
+            server_data: Server configuration dictionary
+            
+        Returns:
+            bool: True if added successfully, False otherwise
+        """
+        if not server_data.get("server_id"):
+            return False
+            
+        # Add server to list
+        self.servers.append(server_data)
+        self.updated_at = datetime.utcnow()
+        
+        # Update in database
+        result = await self.db.guilds.update_one(
+            {"guild_id": self.guild_id},
+            {
+                "$set": {
+                    "servers": self.servers,
+                    "updated_at": self.updated_at
+                }
+            }
+        )
+        
+        return result.modified_count > 0
+        
+    async def remove_server(self, server_id: str) -> bool:
+        """Remove a server from the guild
+        
+        Args:
+            server_id: Server ID to remove
+            
+        Returns:
+            bool: True if removed successfully, False otherwise
+        """
+        # Find and remove server
+        self.servers = [s for s in self.servers if str(s.get("server_id")) != str(server_id)]
+        self.updated_at = datetime.utcnow()
+        
+        # Update in database
+        result = await self.db.guilds.update_one(
+            {"guild_id": self.guild_id},
+            {
+                "$set": {
+                    "servers": self.servers,
+                    "updated_at": self.updated_at
+                }
+            }
+        )
+        
+        return result.modified_count > 0
+        
+    async def get_server(self, server_id: str) -> Optional[Dict[str, Any]]:
+        """Get a server by ID
+        
+        Args:
+            server_id: Server ID to find
+            
+        Returns:
+            Optional[Dict]: Server data if found, None otherwise
+        """
+        for server in self.servers:
+            if str(server.get("server_id")) == str(server_id):
+                return server
+        return None
+
+    def get_max_servers(self) -> int:
+        """Get maximum number of servers allowed for guild's tier"""
+        from config import PREMIUM_TIERS
+        tier_info = PREMIUM_TIERS.get(self.premium_tier, {})
+        return tier_info.get("max_servers", 1)
     
     @classmethod
     async def get_by_guild_id(cls, db, guild_id: str) -> Optional['Guild']:
