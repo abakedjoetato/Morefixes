@@ -1368,12 +1368,22 @@ class Setup(commands.Cog):
             if not await self._check_permission(ctx):
                 return
 
-            # Check if guild has stats feature
+            # Get guild data and check for servers
             guild_data = await self.bot.db.guilds.find_one({"guild_id": ctx.guild.id})
-            if not guild_data:
+            if not guild_data or not guild_data.get("servers"):
                 embed = await EmbedBuilder.create_error_embed(
-                    "Guild Not Set Up",
-                    "This guild is not set up. Please add a server first."
+                    "No Servers Found",
+                    "No servers are configured for this guild. Please add a server first using `/setup addserver`."
+                , guild=guild_model)
+                await ctx.send(embed=embed)
+                return
+
+            # Check for stats feature after verifying servers exist
+            guild = Guild(self.bot.db, guild_data)
+            if not guild.check_feature_access("stats"):
+                embed = await EmbedBuilder.create_error_embed(
+                    "Premium Feature",
+                    "Historical parsing is a premium feature. Please upgrade to access this feature."
                 , guild=guild_model)
                 await ctx.send(embed=embed)
                 return
