@@ -289,6 +289,38 @@ class Setup(commands.Cog):
             # Check permissions
             if not await self._check_permission(ctx):
                 return
+                
+            # Get guild premium tier and server count
+            guild_tier = 0
+            server_count = 0
+            
+            # Get guild data if not retrieved earlier
+            if not guild_data:
+                guild_data = await self.bot.db.guilds.find_one({"guild_id": ctx.guild.id})
+                
+            if guild_data:
+                guild_tier = guild_data.get("premium_tier", 0)
+                servers = guild_data.get("servers", {})
+                server_count = len(servers)
+                
+                # Create guild model if not already done
+                if not guild_model:
+                    guild_model = Guild(self.bot.db, guild_data)
+            
+            # Check server limit based on premium tier
+            from config import PREMIUM_TIERS
+            max_servers = PREMIUM_TIERS.get(guild_tier, {}).get("max_servers", 1)
+            tier_name = PREMIUM_TIERS.get(guild_tier, {}).get("name", f"Tier {guild_tier}")
+            
+            if server_count >= max_servers:
+                embed = EmbedBuilder.create_error_embed(
+                    "Server Limit Reached",
+                    f"Your guild is on the **{tier_name}** tier, which allows a maximum of **{max_servers}** server{'s' if max_servers != 1 else ''}.\n\n"
+                    f"To add more servers, please upgrade your premium tier with `/premium upgrade`.",
+                    guild=guild_model
+                )
+                await ctx.send(embed=embed)
+                return
 
             # Validate server ID (no spaces, special chars except underscore)
             if not re.match(r'^[a-zA-Z0-9_]+$', server_id):
@@ -321,21 +353,11 @@ class Setup(commands.Cog):
             if not guild:
                 guild = await Guild.create(self.bot.db, ctx.guild.id, ctx.guild.name)
 
-            # Check if we can add more servers (premium tier limit)
+            # Check if we can add killfeed feature
             if not guild.check_feature_access("killfeed"):
                 embed = EmbedBuilder.create_error_embed(
                     "Feature Disabled",
                     "This guild does not have the Killfeed feature enabled. Please contact an administrator."
-                , guild=guild_model)
-                await ctx.send(embed=embed)
-                return
-
-            # Check if we're at server limit
-            max_servers = guild.get_max_servers()
-            if len(guild.servers) >= max_servers:
-                embed = EmbedBuilder.create_error_embed(
-                    "Server Limit Reached",
-                    f"This guild has reached the maximum number of servers ({max_servers}) for its premium tier."
                 , guild=guild_model)
                 await ctx.send(embed=embed)
                 return

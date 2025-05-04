@@ -71,25 +71,40 @@ CSV_FIELDS = {
 
 # Premium tiers configuration
 PREMIUM_TIERS = {
-    0: {  # Free tier
+    0: {  # Scavenger (Free)
+        "name": "Scavenger",
+        "price": "£0",
         "max_servers": 1,
         "features": ["killfeed"],
         "server_slots": 1,
     },
-    1: {  # Basic premium
+    1: {  # Survivor (£5)
+        "name": "Survivor",
+        "price": "£5",
+        "max_servers": 1,
+        "features": ["killfeed", "events", "connections", "stats"],
+        "server_slots": 1,
+    },
+    2: {  # Mercenary (£10)
+        "name": "Mercenary",
+        "price": "£10",
+        "max_servers": 2,
+        "features": ["killfeed", "events", "connections", "stats", "economy", "gambling"],
+        "server_slots": 2,
+    },
+    3: {  # Warlord (£20)
+        "name": "Warlord",
+        "price": "£20",
         "max_servers": 3,
-        "features": ["killfeed", "events", "connections", "economy"],
+        "features": ["killfeed", "events", "connections", "stats", "custom_embeds", "economy", "gambling", "bounty", "rivalries"],
         "server_slots": 3,
     },
-    2: {  # Standard premium
-        "max_servers": 5,
-        "features": ["killfeed", "events", "connections", "stats", "economy", "gambling", "bounty"],
-        "server_slots": 5,
-    },
-    3: {  # Advanced premium
-        "max_servers": 10,
-        "features": ["killfeed", "events", "connections", "stats", "custom_embeds", "economy", "gambling", "bounty"],
-        "server_slots": 10,
+    4: {  # Overseer (£50)
+        "name": "Overseer",
+        "price": "£50",
+        "max_servers": 999,  # Essentially unlimited
+        "features": ["killfeed", "events", "connections", "stats", "custom_embeds", "economy", "gambling", "bounty", "rivalries"],
+        "server_slots": 999,
     }
 }
 

@@ -125,7 +125,7 @@ class CommandSelect(discord.ui.Select):
         elif category == "Stats":
             title = "📊 Stats Commands"
             description = "Player and server statistics commands"
-            premium_note = "\n\n**Note:** Basic stats require Bronze tier, enhanced stats require Silver or higher"
+            premium_note = "\n\n**Note:** Basic stats require Survivor tier, enhanced stats require Mercenary or higher"
             description += premium_note
             fields = [
                 {"name": "/stats player <server> <player>", "value": "View statistics for a player", "inline": False},
@@ -133,14 +133,14 @@ class CommandSelect(discord.ui.Select):
                 {"name": "/stats leaderboard <server> <stat>", "value": "View leaderboards for a specific stat", "inline": False},
                 {"name": "/stats weapon_categories <server>", "value": "View statistics by weapon category", "inline": False},
                 {"name": "/stats weapon <server> <weapon>", "value": "View statistics for a specific weapon", "inline": False},
-                {"name": "/stats rivalry <server> <player>", "value": "View a player's rivalries (Gold+ tier)", "inline": False},
-                {"name": "/stats top_rivalries <server>", "value": "View the top rivalries on the server (Gold+ tier)", "inline": False},
+                {"name": "/stats rivalry <server> <player>", "value": "View a player's rivalries (Warlord+ tier)", "inline": False},
+                {"name": "/stats top_rivalries <server>", "value": "View the top rivalries on the server (Warlord+ tier)", "inline": False},
             ]
             
         elif category == "Economy":
             title = "💰 Economy Commands"
             description = "Economy and gambling features"
-            premium_note = "\n\n**Note:** Basic economy requires Silver tier, gambling features available on Silver+ tiers"
+            premium_note = "\n\n**Note:** Basic economy requires Mercenary tier, gambling features available on Mercenary+ tiers"
             description += premium_note
             fields = [
                 {"name": "/economy balance <server>", "value": "Check your balance", "inline": False},
@@ -148,9 +148,9 @@ class CommandSelect(discord.ui.Select):
                 {"name": "/economy leaderboard <server>", "value": "View the richest players", "inline": False},
                 {"name": "/economy give <server> <user> <amount>", "value": "Give credits to another player", "inline": False},
                 {"name": "/economy stats <server>", "value": "View server economy statistics", "inline": False},
-                {"name": "/gambling blackjack <server> [bet]", "value": "Play blackjack (Silver+ tiers)", "inline": False},
-                {"name": "/gambling slots <server> [bet]", "value": "Play slots (Silver+ tiers)", "inline": False},
-                {"name": "/gambling roulette <server> [bet] [bet_type]", "value": "Play roulette (Silver+ tiers)", "inline": False},
+                {"name": "/gambling blackjack <server> [bet]", "value": "Play blackjack (Mercenary+ tiers)", "inline": False},
+                {"name": "/gambling slots <server> [bet]", "value": "Play slots (Mercenary+ tiers)", "inline": False},
+                {"name": "/gambling roulette <server> [bet] [bet_type]", "value": "Play roulette (Mercenary+ tiers)", "inline": False},
             ]
             
         elif category == "Premium":
@@ -161,10 +161,10 @@ class CommandSelect(discord.ui.Select):
                 {"name": "/premium upgrade", "value": "Request a premium upgrade", "inline": False},
                 {"name": "/premium features", "value": "View available premium features", "inline": False},
                 {"name": "/premium tiers", "value": "Display available premium tiers and their features", "inline": False},
-                {"name": "/premium set_theme", "value": "Set the theme for embed displays (Gold+ tiers only)", "inline": False},
+                {"name": "/premium set_theme", "value": "Set the theme for embed displays (Warlord+ tiers only)", "inline": False},
             ]
             # Add premium tiers information
-            fields.append({"name": "Premium Tiers", "value": "**Free**: Basic server management\n**Bronze**: Basic stats, simple killfeeds\n**Silver**: Enhanced stats, basic economy, simple gambling\n**Gold**: Full stats, economy, rivalries, basic bounties\n**Platinum**: All features including advanced bounties, all gambling games", "inline": False})
+            fields.append({"name": "Premium Tiers", "value": "**Scavenger** (Free): Basic server management, killfeed (1 server)\n**Survivor** (£5): Basic stats, enhanced killfeeds (1 server)\n**Mercenary** (£10): Enhanced stats, basic economy, simple gambling (2 servers)\n**Warlord** (£20): Full stats, economy, rivalries, basic bounties (3 servers)\n**Overseer** (£50): All features including advanced bounties, all gambling games (unlimited servers)", "inline": False})
         
         elif category == "Parser":
             title = "📋 Parser System"
