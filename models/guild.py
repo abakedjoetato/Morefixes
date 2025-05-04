@@ -18,6 +18,7 @@ class Guild(BaseModel):
     
     def __init__(
         self,
+        db,
         guild_id: Optional[str] = None,
         name: Optional[str] = None,
         premium_tier: int = 0,
@@ -33,6 +34,7 @@ class Guild(BaseModel):
         **kwargs
     ):
         self._id = None
+        self.db = db
         self.guild_id = guild_id
         self.name = name
         self.premium_tier = premium_tier

@@ -350,8 +350,8 @@ class Setup(commands.Cog):
 
             # Get or create guild
             guild = await Guild.get_by_id(self.bot.db, ctx.guild.id)
-            if not guild:
-                guild = await Guild.create(self.bot.db, ctx.guild.id, ctx.guild.name)
+            if guild:
+                guild.db = self.bot.db
 
             # Check if we can add killfeed feature
             if not guild.check_feature_access("killfeed"):
@@ -1540,8 +1540,7 @@ class Setup(commands.Cog):
                     "Historical ParseIn Progress",
                     "\n".join(status_lines),
                     progress=current_size,
-                    total=total_file_size
-                , guild=guild_model)
+                    total=total_file_size                , guild=guild_model)
                 await message.edit(embed=embed)
 
             current_size = 0
