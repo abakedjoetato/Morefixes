@@ -28,23 +28,49 @@ SERVER_CACHE_TIMEOUT = 300  # 5 minutes
 async def server_id_autocomplete(interaction: discord.Interaction, current: str) -> List[app_commands.Choice[str]]:
     """Autocomplete for server selection by name, returns server_id as value"""
     try:
-        # Get guild data directly
-        guild_data = await interaction.client.db.guilds.find_one({"guild_id": interaction.guild_id})
-        if not guild_data or "servers" not in guild_data:
+        # Get guild data with flexible ID handling
+        guild_data = await interaction.client.db.guilds.find_one({
+            "$or": [
+                {"guild_id": interaction.guild_id},
+                {"guild_id": str(interaction.guild_id)}
+            ]
+        })
+
+        logger.info(f"Autocomplete query for guild {interaction.guild_id}")
+        
+        if not guild_data:
+            logger.warning(f"No guild data found for {interaction.guild_id}")
             return []
+
+        if "servers" not in guild_data:
+            logger.warning(f"No servers found in guild data for {interaction.guild_id}")
+            return []
+
+        logger.info(f"Found {len(guild_data['servers'])} servers")
 
         choices = []
         for server in guild_data["servers"]:
-            server_id = str(server.get("server_id", ""))  # Ensure string type
+            # Ensure we have string values
+            server_id = str(server.get("server_id", "")).strip()
             server_name = server.get("server_name", server.get("name", "Unknown"))
+
+            if not server_id:
+                continue
+
+            # Debug log
+            logger.debug(f"Processing server: {server_name} ({server_id})")
 
             # Check if current input matches server name or ID
             if not current or current.lower() in server_name.lower() or current.lower() in server_id.lower():
+                choice_name = f"{server_name} ({server_id})"
                 choices.append(app_commands.Choice(
-                    name=f"{server_name} ({server_id})",
+                    name=choice_name,
                     value=server_id
                 ))
+                logger.debug(f"Added choice: {choice_name} -> {server_id}")
 
+        # Sort choices by name for better UX
+        choices.sort(key=lambda x: x.name)
         return choices[:25]  # Discord has a limit of 25 choices
 
         # Get detailed information about the command structure
