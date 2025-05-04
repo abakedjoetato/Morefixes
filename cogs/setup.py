@@ -801,7 +801,7 @@ class Setup(commands.Cog):
                 async with asyncio.timeout(10.0):  # 10 second timeout for database operation
                     success = await server.update(update_data)
                     if not success:
-                        raise Exception("Failed to update server configuration")
+                        raise Exception("Failed to update serverconfiguration")
             except asyncio.TimeoutError:
                 embed = discord.Embed(
                     title="Error",
@@ -1136,20 +1136,29 @@ class Setup(commands.Cog):
             # Initialize guild_model early to avoid UnboundLocalError
             guild_model = None
 
-            # Get guild model for themed embed early - before any potential returns
-            try:
-                guild_data = await self.bot.db.guilds.find_one({"guild_id": ctx.guild.id})
-                if guild_data:
-                    guild_model = Guild(self.bot.db, guild_data)
-            except Exception as e:
-                logger.warning(f"Error getting guild model: {e}")
-
             # Defer response to prevent timeout
             await ctx.defer()
 
-            # Get guild
-            guild_data = await self.bot.db.guilds.find_one({"guild_id": ctx.guild.id})
-            if not guild_data or not guild_data.get("servers"):
+            # Get guild with explicit type handling for guild ID
+            guild_data = await self.bot.db.guilds.find_one({
+                "$or": [
+                    {"guild_id": ctx.guild.id},
+                    {"guild_id": str(ctx.guild.id)}
+                ]
+            })
+
+            # Create guild model if data found
+            if guild_data:
+                guild_model = Guild(self.bot.db, guild_data)
+                logger.info(f"Found guild data: {len(guild_data.get('servers', []))} servers")
+            else:
+                logger.warning(f"No guild data found for ID: {ctx.guild.id}")
+
+            # Check for servers with detailed logging
+            servers = guild_data.get("servers", []) if guild_data else []
+            logger.info(f"Retrieved {len(servers)} servers from guild data")
+
+            if not servers:
                 embed = await EmbedBuilder.create_error_embed(
                     "No Servers Found",
                     "No servers have been configured for this guild yet."
