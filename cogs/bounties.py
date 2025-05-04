@@ -101,8 +101,8 @@ class BountiesCog(commands.GroupCog, name="bounty"):
                     if not auto_bounty:
                         continue
                         
-                    # Get guild settings
-                    guild = Guild(db, guild_data)
+                    # Get guild settings from dict
+                    guild = Guild(**guild_data)
                     if not guild.premium_tier >= 2:  # Auto-bounty requires premium tier 2+
                         continue
                         
@@ -114,15 +114,18 @@ class BountiesCog(commands.GroupCog, name="bounty"):
                     reward_amount = auto_bounty_settings.get("reward_amount", 100)
                     
                     # Process each server
-                    for server_id in guild.servers:
+                    servers = getattr(guild, 'servers', guild_data.get('servers', []))
+                    for server_id in servers:
                         try:
                             # Get potential bounty targets
+                            # We already have a DB connection from the parent scope
                             targets = await Bounty.get_player_stats_for_bounty(
                                 guild_id, 
                                 server_id, 
                                 minutes=time_window,
                                 kill_threshold=kill_threshold,
-                                repeat_threshold=repeat_threshold
+                                repeat_threshold=repeat_threshold,
+                                db=db
                             )
                             
                             for target in targets:
@@ -176,7 +179,9 @@ class BountiesCog(commands.GroupCog, name="bounty"):
         """
         try:
             # Check if there's already an active bounty on this player
-            existing_bounties = await Bounty.get_active_bounties_for_target(guild_id, server_id, player_id)
+            from utils.database import get_db
+            db = await get_db()
+            existing_bounties = await Bounty.get_active_bounties_for_server_target(db, guild_id, server_id, player_id)
             if existing_bounties:
                 # Already has an active bounty, don't create another
                 return
@@ -188,6 +193,7 @@ class BountiesCog(commands.GroupCog, name="bounty"):
             
             # Create the bounty
             bounty = await Bounty.create(
+                db=db,
                 guild_id=guild_id,
                 server_id=server_id,
                 target_id=player_id,
@@ -204,8 +210,7 @@ class BountiesCog(commands.GroupCog, name="bounty"):
             logger.info(f"Created auto-bounty on {player_name} ({player_id}) for {reason}")
             
             # Announce the bounty in the configured channel
-            from utils.database import get_db
-            db = await get_db()
+            # Reuse the existing DB connection
             guild_data = await db.db.guilds.find_one({"guild_id": guild_id})
             if guild_data:
                 bounty_channel_id = guild_data.get("bounty_channel")
@@ -361,7 +366,7 @@ class BountiesCog(commands.GroupCog, name="bounty"):
             
             # Get guild info
             guild_id = str(interaction.guild_id)
-            guild = await Guild.get_by_guild_id(guild_id)
+            guild = await Guild.get_by_guild_id(db, guild_id)
             
             if not guild:
                 await interaction.followup.send(
@@ -371,8 +376,16 @@ class BountiesCog(commands.GroupCog, name="bounty"):
                 return
                 
             # Check if server exists
-            server = await guild.get_server(server_id)
-            if not server:
+            # Direct lookup from guild data since get_server might not be implemented
+            server_exists = False
+            if hasattr(guild, "data") and isinstance(guild.data, dict):
+                servers = guild.data.get("servers", [])
+                for srv in servers:
+                    if str(srv.get("server_id")) == str(server_id):
+                        server_exists = True
+                        break
+            
+            if not server_exists:
                 await interaction.followup.send(
                     f"Error: Server with ID {server_id} not found for this guild.",
                     ephemeral=True
@@ -471,6 +484,7 @@ class BountiesCog(commands.GroupCog, name="bounty"):
                 
             # Create the bounty
             bounty = await Bounty.create(
+                db=db,
                 guild_id=guild_id,
                 server_id=server_id,
                 target_id=player_id,
@@ -488,7 +502,9 @@ class BountiesCog(commands.GroupCog, name="bounty"):
             await interaction.followup.send(embed=embed)
             
             # Also announce in bounty channel if configured
-            bounty_channel_id = guild.data.get("bounty_channel")
+            bounty_channel_id = None
+            if hasattr(guild, "data") and isinstance(guild.data, dict):
+                bounty_channel_id = guild.data.get("bounty_channel")
             if bounty_channel_id and bounty_channel_id != str(interaction.channel_id):
                 try:
                     channel = self.bot.get_channel(int(bounty_channel_id))
@@ -528,7 +544,9 @@ class BountiesCog(commands.GroupCog, name="bounty"):
             guild_id = str(interaction.guild_id)
             
             # Get active bounties
-            bounties = await Bounty.get_active_bounties(guild_id, server_id)
+            from utils.database import get_db
+            db = await get_db()
+            bounties = await Bounty.get_active_bounties(db, server_id)
             
             # Format and send the bounties
             embeds = await self._format_bounty_list(bounties)
@@ -580,11 +598,13 @@ class BountiesCog(commands.GroupCog, name="bounty"):
             discord_id = str(interaction.user.id)
             
             # Get bounties based on type
+            from utils.database import get_db
+            db = await get_db()
             if view_type == "placed":
-                bounties = await Bounty.get_bounties_placed_by(guild_id, server_id, discord_id)
+                bounties = await Bounty.get_bounties_placed_by(db, discord_id)
                 title = "Bounties You've Placed"
             else:  # claimed
-                bounties = await Bounty.get_bounties_claimed_by(guild_id, server_id, discord_id)
+                bounties = await Bounty.get_bounties_claimed_by(db, discord_id)
                 title = "Bounties You've Claimed"
             
             # Filter to most recent 20 bounties
