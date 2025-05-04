@@ -347,6 +347,12 @@ class Guild(BaseModel):
         # Check if feature is in allowed features
         return feature_name in features
 
+    def get_available_features(self) -> List[str]:
+        """Get list of features available for this guild's premium tier"""
+        from config import PREMIUM_TIERS
+        tier_info = PREMIUM_TIERS.get(self.premium_tier, {})
+        return tier_info.get("features", [])
+
     @classmethod
     def from_document(cls, document: Dict[str, Any], db) -> Optional['Guild']:
         """Create a Guild instance from a database document"""
