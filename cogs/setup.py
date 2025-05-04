@@ -37,7 +37,7 @@ async def server_id_autocomplete(interaction: discord.Interaction, current: str)
         for server in guild_data["servers"]:
             server_id = str(server.get("server_id", ""))  # Ensure string type
             server_name = server.get("server_name", server.get("name", "Unknown"))
-            
+
             # Check if current input matches server name or ID
             if not current or current.lower() in server_name.lower() or current.lower() in server_id.lower():
                 choices.append(app_commands.Choice(
@@ -289,31 +289,31 @@ class Setup(commands.Cog):
             # Check permissions
             if not await self._check_permission(ctx):
                 return
-                
+
             # Get guild premium tier and server count
             guild_tier = 0
             server_count = 0
-            
+
             # Get guild data if not retrieved earlier
             if not guild_data:
                 guild_data = await self.bot.db.guilds.find_one({"guild_id": ctx.guild.id})
-                
+
             if guild_data:
                 guild_tier = guild_data.get("premium_tier", 0)
                 servers = guild_data.get("servers", {})
                 server_count = len(servers)
-                
+
                 # Create guild model if not already done
                 if not guild_model:
                     guild_model = Guild(self.bot.db, guild_data)
-            
+
             # Check server limit based on premium tier
             from config import PREMIUM_TIERS
             max_servers = PREMIUM_TIERS.get(guild_tier, {}).get("max_servers", 1)
             tier_name = PREMIUM_TIERS.get(guild_tier, {}).get("name", f"Tier {guild_tier}")
-            
+
             if server_count >= max_servers:
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Server Limit Reached",
                     f"Your guild is on the **{tier_name}** tier, which allows a maximum of **{max_servers}** server{'s' if max_servers != 1 else ''}.\n\n"
                     f"To add more servers, please upgrade your premium tier with `/premium upgrade`.",
@@ -324,7 +324,7 @@ class Setup(commands.Cog):
 
             # Validate server ID (no spaces, special chars except underscore)
             if not re.match(r'^[a-zA-Z0-9_]+$', server_id):
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Invalid Server ID",
                     "Server ID can only contain letters, numbers, and underscores."
                 , guild=guild_model)
@@ -341,7 +341,7 @@ class Setup(commands.Cog):
 
             # Validate SFTP info
             if not host or not username or not password:
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Invalid SFTP Information",
                     "Please provide valid host, username, and password for SFTP connection."
                 , guild=guild_model)
@@ -355,7 +355,7 @@ class Setup(commands.Cog):
 
             # Check if we can add killfeed feature
             if not guild.check_feature_access("killfeed"):
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Feature Disabled",
                     "This guild does not have the Killfeed feature enabled. Please contact an administrator."
                 , guild=guild_model)
@@ -365,7 +365,7 @@ class Setup(commands.Cog):
             # Check if server ID already exists
             for server in guild.servers:
                 if server.get("server_id") == server_id:
-                    embed = EmbedBuilder.create_error_embed(
+                    embed = await EmbedBuilder.create_error_embed(
                         "Server Exists",
                         f"A server with ID '{server_id}' already exists in this guild."
                     , guild=guild_model)
@@ -373,7 +373,7 @@ class Setup(commands.Cog):
                     return
 
             # Initial response
-            embed = EmbedBuilder.create_base_embed(
+            embed = await EmbedBuilder.create_base_embed(
                 "Adding Server",
                 f"Testing connection to {server_name}..."
             , guild=guild_model)
@@ -391,7 +391,7 @@ class Setup(commands.Cog):
             # Test connection
             connected = await sftp_client.connect()
             if not connected:
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Connection Failed",
                     f"Failed to connect to SFTP server: {sftp_client.last_error}"
                 , guild=guild_model)
@@ -405,7 +405,7 @@ class Setup(commands.Cog):
             csv_files = []  # Empty placeholder since we don't need to check
 
             # Check if we can find log file
-            embed = EmbedBuilder.create_base_embed(
+            embed = await EmbedBuilder.create_base_embed(
                 "Adding Server",
                 f"Connection successful. Looking for log file..."
             , guild=guild_model)
@@ -430,7 +430,7 @@ class Setup(commands.Cog):
             # Add server to guild
             add_result = await guild.add_server(server_data)
             if not add_result:
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Error Adding Server",
                     "Failed to add server to the database. This may be due to a server limit restriction."
                 , guild=guild_model)
@@ -439,7 +439,7 @@ class Setup(commands.Cog):
                 return
 
             # Success message
-            embed = EmbedBuilder.create_success_embed(
+            embed = await EmbedBuilder.create_success_embed(
                 "Server Added Successfully",
                 f"Server '{server_name}' has been added and is ready for channel setup."
             , guild=guild_model)
@@ -475,7 +475,7 @@ class Setup(commands.Cog):
             try:
                 if guild.check_feature_access("stats"):
                     # Update the message with parsing info
-                    embed = EmbedBuilder.create_info_embed(
+                    embed = await EmbedBuilder.create_info_embed(
                         "Historical Parse Starting",
                         f"Starting automatic historical data parsing for server '{server_name}'."
                         + "\n\nThis process will run in the background and may take some time depending on the amount of data."
@@ -506,7 +506,7 @@ class Setup(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error adding server: {e}", exc_info=True)
-            embed = EmbedBuilder.create_error_embed(
+            embed = await EmbedBuilder.create_error_embed(
                 "Error",
                 f"An error occurred while adding the server: {e}"
             , guild=guild_model)
@@ -543,7 +543,7 @@ class Setup(commands.Cog):
             # Get guild
             guild = await Guild.get_by_id(self.bot.db, ctx.guild.id)
             if not guild:
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Guild Not Set Up",
                     "This guild is not set up. Please add a server first."
                 , guild=guild_model)
@@ -562,7 +562,7 @@ class Setup(commands.Cog):
                     break
 
             if not server_exists:
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Server Not Found",
                     f"Server with ID '{server_id}' not found in this guild."
                 , guild=guild_model)
@@ -570,7 +570,7 @@ class Setup(commands.Cog):
                 return
 
             # Confirmation message
-            embed = EmbedBuilder.create_base_embed(
+            embed = await EmbedBuilder.create_base_embed(
                 "Confirm Server Removal",
                 f"Are you sure you want to remove server '{server_name}' ({server_id})?\n\n"
                 "This will:\n"
@@ -614,7 +614,7 @@ class Setup(commands.Cog):
 
             if view.value is None:
                 # Timeout
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Timed Out",
                     "Server removal cancelled due to timeout."
                 , guild=guild_model)
@@ -623,7 +623,7 @@ class Setup(commands.Cog):
 
             if not view.value:
                 # Cancelled
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Cancelled",
                     "Server removal cancelled."
                 , guild=guild_model)
@@ -631,7 +631,7 @@ class Setup(commands.Cog):
                 return
 
             # Update message
-            embed = EmbedBuilder.create_base_embed(
+            embed = await EmbedBuilder.create_base_embed(
                 "Removing Server",
                 f"Removing server '{server_name}' and stopping all monitoring tasks..."
             , guild=guild_model)
@@ -655,7 +655,7 @@ class Setup(commands.Cog):
             removed = await guild.remove_server(server_id)
 
             if removed:
-                embed = EmbedBuilder.create_success_embed(
+                embed = await EmbedBuilder.create_success_embed(
                     "Server Removed",
                     f"Server '{server_name}' has been completely removed.\n\n" +
                     "All related data has been permanently deleted including:\n" +
@@ -666,7 +666,7 @@ class Setup(commands.Cog):
                 , guild=guild_model)
                 await message.edit(embed=embed)
             else:
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Error",
                     f"Failed to remove server '{server_name}' from the database."
                 , guild=guild_model)
@@ -674,7 +674,7 @@ class Setup(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error removing server: {e}", exc_info=True)
-            embed = EmbedBuilder.create_error_embed(
+            embed = await EmbedBuilder.create_error_embed(
                 "Error",
                 f"An error occurred while removing the server: {e}"
             , guild=guild_model)
@@ -945,7 +945,7 @@ class Setup(commands.Cog):
             guild = await Guild.get_by_id(self.bot.db, ctx.guild.id)
             if not guild:
                 logger.error(f"Guild {ctx.guild.id} not found in database")
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Guild Not Set Up",
                     "This guild is not set up. Please add a server first."
                 , guild=guild_model)
@@ -971,7 +971,7 @@ class Setup(commands.Cog):
 
             if not server:
                 logger.error(f"Server with ID '{server_id}' not found in guild {ctx.guild.id}")
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Server Not Found",
                     f"Server with ID '{server_id}' not found in this guild."
                 , guild=guild_model)
@@ -990,7 +990,7 @@ class Setup(commands.Cog):
 
             # Check premium status for events and connections
             if (events_channel or connections_channel) and not guild.check_feature_access("events"):
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Premium Feature",
                     "Events and connections monitoring are premium features. Please upgrade to access these features."
                 , guild=guild_model)
@@ -1018,7 +1018,7 @@ class Setup(commands.Cog):
             if economy_channel:
                 # Check if guild has economy feature (tier 2+)
                 if not guild.check_feature_access("economy"):
-                    embed = EmbedBuilder.create_error_embed(
+                    embed = await EmbedBuilder.create_error_embed(
                         "Premium Feature",
                         "Economy features require Premium Tier 2 or higher. Please upgrade to access these features."
                     , guild=guild_model)
@@ -1032,7 +1032,7 @@ class Setup(commands.Cog):
             # Check if any updates were provided
             if not update_data:
                 logger.warning("No channel updates provided")
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "No Changes",
                     "No channel updates were provided."
                 , guild=guild_model)
@@ -1059,7 +1059,7 @@ class Setup(commands.Cog):
 
             if updated:
                 logger.info(f"Successfully updated channels for server {server_id}")
-                embed = EmbedBuilder.create_success_embed(
+                embed = await EmbedBuilder.create_success_embed(
                     "Channels Updated",
                     f"Channels for '{server.name}' have been updated successfully."
                 , guild=guild_model)
@@ -1112,7 +1112,7 @@ class Setup(commands.Cog):
                 await ctx.send(embed=embed)
             else:
                 logger.error(f"Failed to update channels for server {server_id}")
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Update Failed",
                     "Failed to update server channels.Check the serverconfiguration."
                 , guild=guild_model)
@@ -1120,7 +1120,7 @@ class Setup(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error setting up channels: {e}", exc_info=True)
-            embed = EmbedBuilder.create_error_embed(
+            embed = await EmbedBuilder.create_error_embed(
                 "Error",
                 f"An error occurred while setting up channels: {e}"
             , guild=guild_model)
@@ -1304,7 +1304,7 @@ class Setup(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error listing servers: {e}", exc_info=True)
-            embed = EmbedBuilder.create_error_embed(
+            embed = await EmbedBuilder.create_error_embed(
                 "Error",
                 f"An error occurred while listing servers: {e}"
             , guild=guild_model)
@@ -1339,7 +1339,7 @@ class Setup(commands.Cog):
             # Check if guild has stats feature
             guild_data = await self.bot.db.guilds.find_one({"guild_id": ctx.guild.id})
             if not guild_data:
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Guild Not Set Up",
                     "This guild is not set up. Please add a server first."
                 , guild=guild_model)
@@ -1348,7 +1348,7 @@ class Setup(commands.Cog):
 
             guild = Guild(self.bot.db, guild_data)
             if not guild.check_feature_access("stats"):
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Premium Feature",
                     "Historical parsing is a premium feature. Please upgrade to access this feature."
                 , guild=guild_model)
@@ -1385,7 +1385,7 @@ class Setup(commands.Cog):
                 logger.warning(f"No server found with ID '{server_id}'. Available servers: {available_servers}")
 
             if not server:
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Server Not Found",
                     f"Server with ID '{server_id}' not found in this guild."
                 , guild=guild_model)
@@ -1393,7 +1393,7 @@ class Setup(commands.Cog):
                 return
 
             # Initial response
-            embed = EmbedBuilder.create_base_embed(
+            embed = await EmbedBuilder.create_base_embed(
                 "Historical Parse",
                 f"Starting historical parse for server '{server.name}'.\n\n"
                 "This process will parse all CSV files and may take a long time depending on the amount of data."
@@ -1412,7 +1412,7 @@ class Setup(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error starting historical parse: {e}", exc_info=True)
-            embed = EmbedBuilder.create_error_embed(
+            embed = await EmbedBuilder.create_error_embed(
                 "Error",
                 f"An error occurred while starting historical parse: {e}"
             , guild=guild_model)
@@ -1445,7 +1445,7 @@ class Setup(commands.Cog):
             # Connect to SFTP
             connected = await sftp_client.connect()
             if not connected:
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Connection Failed",
                     f"Failed to connect to SFTP server: {sftp_client.last_error}"
                 , guild=guild_model)
@@ -1453,7 +1453,7 @@ class Setup(commands.Cog):
                 return
 
             # Get all CSV files
-            embed = EmbedBuilder.create_base_embed(
+            embed = await EmbedBuilder.create_base_embed(
                 "Historical Parse",
                 f"Connected to SFTP server. Retrieving CSV files..."
             , guild=guild_model)
@@ -1466,7 +1466,7 @@ class Setup(commands.Cog):
             # Find all CSV files recursively
             csv_files = await sftp_client._find_csv_files_recursive(deathlogs_path)
             if not csv_files:
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "No CSV Files Found",
                     "Could not find any CSV files in the server."
                 , guild=guild_model)
@@ -1498,7 +1498,7 @@ class Setup(commands.Cog):
             logger.info(f"Processing {len(sorted_files)} files in chronological order")
 
             # Update progress
-            embed = EmbedBuilder.create_base_embed(
+            embed = await EmbedBuilder.create_base_embed(
                 "Historical Parse",
                 f"Found {len(sorted_files)} CSV file(s). Starting to parse data..."
             , guild=guild_model)
@@ -1536,8 +1536,8 @@ class Setup(commands.Cog):
                 if estimated:
                     status_lines.append(f"Estimated time remaining: {estimated}")
 
-                embed = EmbedBuilder.create_progress_embed(
-                    "Historical Parse In Progress",
+                embed = await EmbedBuilder.create_progress_embed(
+                    "Historical ParseIn Progress",
                     "\n".join(status_lines),
                     progress=current_size,
                     total=total_file_size
@@ -1667,7 +1667,7 @@ class Setup(commands.Cog):
             elapsed_min = int(elapsed_time // 60)
             elapsed_sec = int(elapsed_time % 60)
 
-            embed = EmbedBuilder.create_success_embed(
+            embed = await EmbedBuilder.create_success_embed(
                 "Historical Parse Complete",
                 f"Successfully parsed {len(sorted_files)} CSV file(s) with {total_lines:,} lines and processed {total_kills:,} kill events.\n\n" +
                 f"Elapsed time: {elapsed_min}m {elapsed_sec}s"
@@ -1679,7 +1679,7 @@ class Setup(commands.Cog):
 
         except asyncio.CancelledError:
             logger.info(f"Historical parse for server {server.id} cancelled")
-            embed = EmbedBuilder.create_error_embed(
+            embed = await EmbedBuilder.create_error_embed(
                 "Parse Cancelled",
                 "The historical parse has been cancelled."
             , guild=guild_model)
@@ -1687,7 +1687,7 @@ class Setup(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error in historical parse for server {server.id}: {e}", exc_info=True)
-            embed = EmbedBuilder.create_error_embed(
+            embed = await EmbedBuilder.create_error_embed(
                 "Error",
                 f"An error occurred during the historical parse: {e}"
             , guild=guild_model)
@@ -1709,7 +1709,7 @@ class Setup(commands.Cog):
         except Exception as e:
             logger.warning(f"Error getting guild model in permission check: {e}")
 
-        embed = EmbedBuilder.create_error_embed(
+        embed = await EmbedBuilder.create_error_embed(
             "Permission Denied",
             "You need administrator permission or the designated admin role to use this command.",
             guild=guild_model)
