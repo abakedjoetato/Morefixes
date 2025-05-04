@@ -100,7 +100,6 @@ class SFTPClient:
     async def disconnect(self):
         """Disconnect from SFTP server"""
         if self._sftp_client:
-            await self._sftp_client.close()
             self._sftp_client = None
 
         if self._ssh_client:
