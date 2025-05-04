@@ -1559,7 +1559,8 @@ class Setup(commands.Cog):
                 size = await sftp_client.get_file_size(file_path)
                 total_file_size += size
 
-            # Create progress embed function for reuseasync def update_progress(current_size, current_files, kills, lines_processed=0, estimated=None):
+            # Create progress embed function for reuse
+            async def update_progress(current_size, current_files, kills, lines_processed=0, estimated=None):
                 elapsed = (datetime.now() - start_time).total_seconds()
                 progress_pct = min(99.9, (current_size / max(1, total_file_size)) * 100) if total_file_size > 0 else 0
 
@@ -1581,7 +1582,9 @@ class Setup(commands.Cog):
                     "Historical ParseIn Progress",
                     "\n".join(status_lines),
                     progress=current_size,
-                    total=total_file_size                , guild=guild_model)
+                    total=total_file_size,
+                    guild=guild_model
+                )
                 await message.edit(embed=embed)
 
             current_size = 0
@@ -1614,7 +1617,7 @@ class Setup(commands.Cog):
                     # Parse lines
                     kill_events = CSVParser.parse_kill_lines(lines)
 
-                    # Logdetails about parsed events
+                    # Log details about parsed events
                     if len(kill_events) > 0:
                         logger.info(f"Successfully parsed {len(kill_events)} kill events from chunk of {len(lines)} lines")
                     else:
