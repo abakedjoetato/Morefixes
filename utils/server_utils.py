@@ -1,334 +1,104 @@
 """
-Server utility functions for the Tower of Temptation PvP Statistics Discord Bot
+Server Validation Utilities
 
-These utilities provide robust server validation and retrieval functions with multiple fallback methods.
-They ensure consistent type handling for server IDs and standardize validation across the codebase.
+This module contains utilities for validating server existence and handling server IDs consistently.
 """
-
 import logging
-from typing import Dict, Any, Optional, List, Union
+from typing import Optional, Union, Dict, Any
+
+import discord
 
 logger = logging.getLogger(__name__)
 
-async def check_server_exists(db, guild_id, server_id) -> bool:
-    """Check if a server exists in the guild configuration
+async def check_server_existence(
+    guild: discord.Guild, 
+    server_id: str, 
+    db=None
+) -> bool:
+    """
+    Check if a server exists using multiple methods with fallbacks.
     
-    This is a centralized utility to standardize server existence checks across the codebase.
-    It implements a multi-tiered validation approach with fallbacks at each level for maximum reliability.
+    This function implements a robust multi-tiered approach to server validation:
+    1. Check the database for the server ID (if db is provided)
+    2. Check the guild's custom data cache (if available)
+    3. Check the direct server ID against verified servers list
     
     Args:
-        db: Database connection
-        guild_id: Discord guild ID (string or int)
-        server_id: Server ID to check (string or int)
+        guild: The Discord guild where the command was invoked
+        server_id: The server ID to check as a string
+        db: Optional database connection for database checks
         
     Returns:
-        bool: True if server exists, False otherwise
+        bool: True if the server exists, False otherwise
     """
-    # Ensure guild_id and server_id are strings for consistent comparison
-    guild_id = str(guild_id) if guild_id is not None else None
-    server_id = str(server_id) if server_id is not None else None
-    
-    if not guild_id or not server_id:
-        logger.debug("Check server failed: Guild ID or Server ID is empty")
+    if not server_id:
+        logger.warning("Empty server ID provided for validation")
         return False
     
+    # Ensure server_id is a string for consistent comparison
+    server_id = str(server_id).strip()
+    
+    # Attempt to validate through multiple methods
     try:
-        # APPROACH 1: Check via guild.data if available
-        # First query the database to get the guild
-        guild = await db.guilds.find_one({"guild_id": guild_id})
+        # Method 1: Database validation (if db provided)
+        if db:
+            from models.server import Server
+            server = await Server.get_by_server_id(db, server_id, guild.id)
+            if server:
+                logger.debug(f"Server {server_id} validated through database")
+                return True
         
-        if not guild:
-            logger.debug(f"Guild {guild_id} not found in database")
-            return False
-            
-        # APPROACH 1: Check via guild.data.servers
-        if "data" in guild and isinstance(guild["data"], dict) and "servers" in guild["data"]:
-            # New structure with data.servers
-            for server in guild["data"]["servers"]:
-                if isinstance(server, dict) and "server_id" in server:
-                    srv_id = str(server["server_id"])
-                    if srv_id == server_id:
-                        logger.debug(f"Server {server_id} found in guild {guild_id} (data.servers)")
-                        return True
-                elif isinstance(server, str):
-                    # Handle case where server might be stored as a simple string
-                    srv_id = str(server)
-                    if srv_id == server_id:
-                        logger.debug(f"Server {server_id} found in guild {guild_id} (data.servers strings)")
-                        return True
+        # Method 2: Guild cache validation
+        if hasattr(guild, 'servers_cache'):
+            if server_id in guild.servers_cache:
+                logger.debug(f"Server {server_id} validated through guild cache")
+                return True
         
-        # APPROACH 2: Check via guild.servers (legacy/traditional structure)
-        if "servers" in guild:
-            for server in guild["servers"]:
-                if isinstance(server, dict):
-                    # Handle both formatted and raw server IDs
-                    srv_id = str(server.get("server_id", ""))
-                    if srv_id == server_id:
-                        logger.debug(f"Server {server_id} found in guild {guild_id} (servers)")
-                        return True
-                elif isinstance(server, str):
-                    # Handle case where server might be stored as a simple string
-                    srv_id = str(server)
-                    if srv_id == server_id:
-                        logger.debug(f"Server {server_id} found in guild {guild_id} (servers strings)")
-                        return True
-                        
-        # APPROACH 3: Last resort - check server_ids array if it exists
-        if "server_ids" in guild and isinstance(guild["server_ids"], list):
-            for srv_id in guild["server_ids"]:
-                if str(srv_id) == server_id:
-                    logger.debug(f"Server {server_id} found in guild {guild_id} (server_ids)")
-                    return True
-        
-        # If we reach here, the server wasn't found in any location
-        logger.debug(f"Server {server_id} not found in guild {guild_id} after all checks")
-        return False
-        
+        # Method 3: Direct server list validation
+        from utils.database import get_database_manager
+        db_manager = await get_database_manager()
+        if db_manager:
+            db = db_manager.db
+            from models.server import Server
+            server = await Server.get_by_server_id(db, server_id, guild.id)
+            if server:
+                logger.debug(f"Server {server_id} validated through direct server list")
+                return True
+    
     except Exception as e:
-        logger.error(f"Error checking server existence: {str(e)}")
-        return False
+        logger.error(f"Error validating server {server_id}: {e}")
+        # Continue with fallbacks even if one method fails
+    
+    logger.warning(f"Server {server_id} validation failed through all methods")
+    return False
 
-async def get_server_by_id(db, guild_id, server_id) -> Optional[Dict[str, Any]]:
-    """Get a server by ID
+def standardize_server_id(server_id: Union[str, int]) -> str:
+    """
+    Standardize server ID to string format for consistent handling.
     
-    This is a centralized utility to standardize server retrieval across the codebase.
-    It implements a multi-tiered approach with fallbacks at each level for maximum reliability.
+    Args:
+        server_id: The server ID to standardize (string or integer)
+        
+    Returns:
+        str: The standardized server ID as a string
+    """
+    return str(server_id).strip()
+
+# Alias for backward compatibility
+check_server_exists = check_server_existence
+
+# Function for getting server by ID
+async def get_server_by_id(db, server_id: str, guild_id: int):
+    """
+    Get server by ID.
     
     Args:
         db: Database connection
-        guild_id: Discord guild ID (string or int)
-        server_id: Server ID to retrieve (string or int)
+        server_id: Server ID
+        guild_id: Guild ID
         
     Returns:
-        Optional[Dict[str, Any]]: Server data if found, None otherwise
+        Optional[Server]: Server object if found, None otherwise
     """
-    # Ensure guild_id and server_id are strings for consistent comparison
-    guild_id = str(guild_id) if guild_id is not None else None
-    server_id = str(server_id) if server_id is not None else None
-    
-    if not guild_id or not server_id:
-        logger.debug("Get server failed: Guild ID or Server ID is empty")
-        return None
-    
-    try:
-        # First query the database to get the guild
-        guild = await db.guilds.find_one({"guild_id": guild_id})
-        
-        if not guild:
-            logger.debug(f"Guild {guild_id} not found in database")
-            return None
-            
-        # APPROACH 1: Check via guild.data.servers
-        if "data" in guild and isinstance(guild["data"], dict) and "servers" in guild["data"]:
-            for server in guild["data"]["servers"]:
-                if isinstance(server, dict) and "server_id" in server:
-                    srv_id = str(server["server_id"])
-                    if srv_id == server_id:
-                        logger.debug(f"Server {server_id} found in guild {guild_id} (data.servers)")
-                        return server
-                elif isinstance(server, str):
-                    # If server is stored as a string, we need to construct a basic server object
-                    srv_id = str(server)
-                    if srv_id == server_id:
-                        logger.debug(f"Server {server_id} found in guild {guild_id} (data.servers strings)")
-                        # Create a minimal server object
-                        return {
-                            "server_id": server_id,
-                            "name": f"Server {server_id}",  # Default name
-                            "platform": "unknown"  # Default platform
-                        }
-        
-        # APPROACH 2: Check via guild.servers (legacy/traditional structure)
-        if "servers" in guild:
-            for server in guild["servers"]:
-                if isinstance(server, dict):
-                    # Handle both formatted and raw server IDs
-                    srv_id = str(server.get("server_id", ""))
-                    if srv_id == server_id:
-                        logger.debug(f"Server {server_id} found in guild {guild_id} (servers)")
-                        return server
-                elif isinstance(server, str):
-                    # If server is stored as a string, we need to construct a basic server object
-                    srv_id = str(server)
-                    if srv_id == server_id:
-                        logger.debug(f"Server {server_id} found in guild {guild_id} (servers strings)")
-                        # Create a minimal server object
-                        return {
-                            "server_id": server_id,
-                            "name": f"Server {server_id}",  # Default name
-                            "platform": "unknown"  # Default platform
-                        }
-                        
-        # APPROACH 3: Last resort - check server_ids array if it exists and create minimal object
-        if "server_ids" in guild and isinstance(guild["server_ids"], list):
-            for srv_id in guild["server_ids"]:
-                if str(srv_id) == server_id:
-                    logger.debug(f"Server {server_id} found in guild {guild_id} (server_ids)")
-                    # Create a minimal server object
-                    return {
-                        "server_id": server_id,
-                        "name": f"Server {server_id}",  # Default name
-                        "platform": "unknown"  # Default platform
-                    }
-        
-        # If we reach here, the server wasn't found in any location
-        logger.debug(f"Server {server_id} not found in guild {guild_id} after all checks")
-        return None
-        
-    except Exception as e:
-        logger.error(f"Error getting server by ID: {str(e)}")
-        return None
-        
-async def get_all_servers(db, guild_id) -> List[Dict[str, Any]]:
-    """Get all servers for a guild
-    
-    This utility retrieves all servers associated with a guild from all possible locations
-    in the database, merging the results and removing duplicates.
-    
-    Args:
-        db: Database connection
-        guild_id: Discord guild ID (string or int)
-        
-    Returns:
-        List[Dict[str, Any]]: List of server data dictionaries, empty list if none found
-    """
-    # Ensure guild_id is a string for consistent comparison
-    guild_id = str(guild_id) if guild_id is not None else None
-    
-    if not guild_id:
-        logger.debug("Get all servers failed: Guild ID is empty")
-        return []
-    
-    all_servers = []
-    server_ids_seen = set()  # Track seen server IDs to avoid duplicates
-    
-    try:
-        # Query the database to get the guild
-        guild = await db.guilds.find_one({"guild_id": guild_id})
-        
-        if not guild:
-            logger.debug(f"Guild {guild_id} not found in database")
-            return []
-            
-        # SOURCE 1: Check guild.data.servers
-        if "data" in guild and isinstance(guild["data"], dict) and "servers" in guild["data"]:
-            for server in guild["data"]["servers"]:
-                if isinstance(server, dict) and "server_id" in server:
-                    srv_id = str(server["server_id"])
-                    if srv_id not in server_ids_seen:
-                        server_ids_seen.add(srv_id)
-                        all_servers.append(server)
-                elif isinstance(server, str):
-                    # If server is stored as a string, we need to construct a basic server object
-                    srv_id = str(server)
-                    if srv_id not in server_ids_seen:
-                        server_ids_seen.add(srv_id)
-                        # Create a minimal server object
-                        all_servers.append({
-                            "server_id": srv_id,
-                            "name": f"Server {srv_id}",  # Default name
-                            "platform": "unknown"  # Default platform
-                        })
-        
-        # SOURCE 2: Check guild.servers
-        if "servers" in guild:
-            for server in guild["servers"]:
-                if isinstance(server, dict) and "server_id" in server:
-                    srv_id = str(server["server_id"])
-                    if srv_id not in server_ids_seen:
-                        server_ids_seen.add(srv_id)
-                        all_servers.append(server)
-                elif isinstance(server, str):
-                    # If server is stored as a string, we need to construct a basic server object
-                    srv_id = str(server)
-                    if srv_id not in server_ids_seen:
-                        server_ids_seen.add(srv_id)
-                        # Create a minimal server object
-                        all_servers.append({
-                            "server_id": srv_id,
-                            "name": f"Server {srv_id}",  # Default name
-                            "platform": "unknown"  # Default platform
-                        })
-        
-        # SOURCE 3: Check server_ids array
-        if "server_ids" in guild and isinstance(guild["server_ids"], list):
-            for srv_id in guild["server_ids"]:
-                srv_id = str(srv_id)
-                if srv_id not in server_ids_seen:
-                    server_ids_seen.add(srv_id)
-                    # Create a minimal server object
-                    all_servers.append({
-                        "server_id": srv_id,
-                        "name": f"Server {srv_id}",  # Default name
-                        "platform": "unknown"  # Default platform
-                    })
-        
-        logger.debug(f"Found {len(all_servers)} servers for guild {guild_id}")
-        return all_servers
-        
-    except Exception as e:
-        logger.error(f"Error getting all servers: {str(e)}")
-        return []
-        
-async def validate_server_config(db, guild_id, server_id) -> Dict[str, Any]:
-    """Validate that a server configuration has all required fields
-    
-    This utility checks if a server exists and has all required fields properly configured.
-    It returns a dictionary with the validation results and any missing fields.
-    
-    Args:
-        db: Database connection
-        guild_id: Discord guild ID (string or int)
-        server_id: Server ID to check (string or int)
-        
-    Returns:
-        Dict[str, Any]: Validation results containing:
-            - valid (bool): Whether the server exists and is properly configured
-            - exists (bool): Whether the server exists at all
-            - server (Dict or None): The server data if found
-            - missing_fields (List[str]): List of missing required fields
-            - error (str or None): Error message if any occurred
-    """
-    result = {
-        "valid": False,
-        "exists": False,
-        "server": None,
-        "missing_fields": [],
-        "error": None
-    }
-    
-    try:
-        # First check if the server exists
-        server = await get_server_by_id(db, guild_id, server_id)
-        
-        if not server:
-            result["error"] = f"Server {server_id} not found for guild {guild_id}"
-            return result
-            
-        # Server exists
-        result["exists"] = True
-        result["server"] = server
-        
-        # Check for required fields
-        required_fields = ["server_id", "name"]
-        
-        for field in required_fields:
-            if field not in server or not server[field]:
-                result["missing_fields"].append(field)
-        
-        # Check for recommended fields
-        recommended_fields = ["platform", "description"]
-        for field in recommended_fields:
-            if field not in server or not server[field]:
-                logger.debug(f"Server {server_id} missing recommended field: {field}")
-        
-        # Server is valid if it has all required fields
-        result["valid"] = len(result["missing_fields"]) == 0
-        
-        return result
-        
-    except Exception as e:
-        error_msg = f"Error validating server configuration: {str(e)}"
-        logger.error(error_msg)
-        result["error"] = error_msg
-        return result
+    from models.server import Server
+    return await Server.get_by_server_id(db, server_id, guild_id)

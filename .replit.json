@@ -1,33 +1,17 @@
 {
-  "run": {
-    "language": "bash",
-    "onBoot": "",
-    "command": "bash discord_bot.sh"
+  "run": "python main.py",
+  "modules": ["python-3.11"],
+  "nix": {
+    "channel": "stable-24_05"
   },
-  "env": [
-    "DISCORD_TOKEN",
-    "BOT_APPLICATION_ID", 
-    "HOME_GUILD_ID",
-    "MONGODB_URI"
-  ],
-  "works": true,
-  "deploymentTarget": "cloudrun",
-  "languages": {
-    "Python": {
-      "compilers": ["python3"],
-      "lsp": ["python-lsp-server", "pylsp"]
-    }
+  "deployment": {
+    "deploymentTarget": "autoscale",
+    "run": ["python", "main.py"]
   },
   "workflows": {
     "discord_bot": {
       "name": "Discord Bot",
-      "installCommand": "",
-      "startCommand": "bash discord_bot.sh",
-      "restartAt": "10:00",
-      "restartPolicy": {
-        "delay": "12h",
-        "maxAttempts": -1
-      }
+      "run": "bash discord_bot_workflow.sh"
     }
   }
 }

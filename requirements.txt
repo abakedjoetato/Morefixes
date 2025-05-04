@@ -57,3 +57,10 @@ discord.py
 motor
 pymongo
 python-dotenv
+aiohttp
+asyncssh
+discord.py
+motor
+pillow
+pymongo
+python-dotenv
