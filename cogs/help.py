@@ -254,34 +254,21 @@ class Help(commands.Cog):
             # Create and send view with dropdown
             view = CommandsView(self.bot, interaction.user.id, guild_id)
             
-        # Check if embed is a coroutine (shouldn't happen but let's be safe)
-        if hasattr(embed, '__await__'):
-            try:
-                embed = await embed  # Await the coroutine
-            except Exception as e:
-                self.logger.error(f"Error awaiting embed coroutine: {e}")
-                # Create a simple error embed as fallback
-                embed = discord.Embed(
-                    title="⚠️ Error Loading Help",
-                    description="There was an error loading the help information. Please try again later.",
-                    color=discord.Color.red()
-                )
-    
-        
-        # Check if embed is a coroutine (shouldn't happen but let's be safe)
-        if hasattr(embed, '__await__'):
-            try:
-                embed = await embed  # Await the coroutine
-            except Exception as e:
-                self.logger.error(f"Error awaiting embed coroutine: {e}")
-                # Create a simple error embed as fallback
-                embed = discord.Embed(
-                    title="⚠️ Error Loading Help",
-                    description="There was an error loading the help information. Please try again later.",
-                    color=discord.Color.red()
-                )
-    
-        await interaction.followup.send(embed=embed, view=view)
+            # Check if embed is a coroutine (shouldn't happen but let's be safe)
+            if hasattr(embed, '__await__'):
+                try:
+                    embed = await embed  # Await the coroutine
+                except Exception as e:
+                    self.logger.error(f"Error awaiting embed coroutine: {e}")
+                    # Create a simple error embed as fallback
+                    embed = discord.Embed(
+                        title="⚠️ Error Loading Help",
+                        description="There was an error loading the help information. Please try again later.",
+                        color=discord.Color.red()
+                    )
+            
+            # Send the help message
+            await interaction.followup.send(embed=embed, view=view)
             
         except Exception as e:
             self.logger.error(f"Unhandled error in commands command: {e}", exc_info=True)
