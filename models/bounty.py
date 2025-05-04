@@ -43,6 +43,7 @@ class Bounty(BaseModel):
         placed_by_id: Optional[str] = None,
         placed_by_name: Optional[str] = None,
         server_id: Optional[str] = None,
+        guild_id: Optional[str] = None,  # Added guild_id parameter
         amount: int = 0,
         status: str = STATUS_ACTIVE,
         bounty_type: str = TYPE_PLAYER,
@@ -62,6 +63,7 @@ class Bounty(BaseModel):
         self.placed_by_id = placed_by_id
         self.placed_by_name = placed_by_name
         self.server_id = server_id
+        self.guild_id = guild_id  # Store guild_id as a direct property
         self.amount = amount
         self.status = status
         self.bounty_type = bounty_type
@@ -93,12 +95,13 @@ class Bounty(BaseModel):
         return cls.from_document(document) if document else None
     
     @classmethod
-    async def get_active_bounties(cls, db, server_id: Optional[str] = None) -> List['Bounty']:
+    async def get_active_bounties(cls, db, server_id: Optional[str] = None, guild_id: Optional[str] = None) -> List['Bounty']:
         """Get all active bounties
         
         Args:
             db: Database connection
             server_id: Optional server ID to filter by
+            guild_id: Optional guild ID to filter by
             
         Returns:
             List of active Bounty objects
@@ -106,6 +109,8 @@ class Bounty(BaseModel):
         query = {"status": cls.STATUS_ACTIVE}
         if server_id:
             query["server_id"] = server_id
+        if guild_id:
+            query["guild_id"] = guild_id
             
         cursor = db.bounties.find(query)
         
@@ -116,13 +121,14 @@ class Bounty(BaseModel):
         return bounties
     
     @classmethod
-    async def get_active_bounties_for_target(cls, db, target_id: str, server_id: str = None) -> List['Bounty']:
+    async def get_active_bounties_for_target(cls, db, target_id: str, server_id: Optional[str] = None, guild_id: Optional[str] = None) -> List['Bounty']:
         """Get all active bounties for a target
         
         Args:
             db: Database connection
             target_id: Target player ID
             server_id: Optional server ID to filter by
+            guild_id: Optional guild ID to filter by
             
         Returns:
             List of active Bounty objects for the target
@@ -134,6 +140,9 @@ class Bounty(BaseModel):
         
         if server_id:
             query["server_id"] = server_id
+            
+        if guild_id:
+            query["guild_id"] = guild_id
             
         cursor = db.bounties.find(query)
         
@@ -156,11 +165,17 @@ class Bounty(BaseModel):
         Returns:
             List of active Bounty objects for the target
         """
-        cursor = db.bounties.find({
+        query = {
             "target_id": target_id,
             "server_id": server_id,
             "status": cls.STATUS_ACTIVE
-        })
+        }
+        
+        # Add guild_id to query if provided
+        if guild_id:
+            query["guild_id"] = guild_id
+            
+        cursor = db.bounties.find(query)
         
         bounties = []
         async for document in cursor:
@@ -169,17 +184,23 @@ class Bounty(BaseModel):
         return bounties
     
     @classmethod
-    async def get_bounties_placed_by(cls, db, placed_by_id: str) -> List['Bounty']:
+    async def get_bounties_placed_by(cls, db, placed_by_id: str, guild_id: Optional[str] = None) -> List['Bounty']:
         """Get all bounties placed by a player
         
         Args:
             db: Database connection
             placed_by_id: Player ID who placed the bounties
+            guild_id: Optional guild ID to filter by
             
         Returns:
             List of Bounty objects placed by the player
         """
-        cursor = db.bounties.find({"placed_by_id": placed_by_id})
+        query = {"placed_by_id": placed_by_id}
+        
+        if guild_id:
+            query["guild_id"] = guild_id
+            
+        cursor = db.bounties.find(query)
         
         bounties = []
         async for document in cursor:
@@ -188,20 +209,26 @@ class Bounty(BaseModel):
         return bounties
     
     @classmethod
-    async def get_bounties_claimed_by(cls, db, claimed_by_id: str) -> List['Bounty']:
+    async def get_bounties_claimed_by(cls, db, claimed_by_id: str, guild_id: Optional[str] = None) -> List['Bounty']:
         """Get all bounties claimed by a player
         
         Args:
             db: Database connection
             claimed_by_id: Player ID who claimed the bounties
+            guild_id: Optional guild ID to filter by
             
         Returns:
             List of Bounty objects claimed by the player
         """
-        cursor = db.bounties.find({
+        query = {
             "claimed_by_id": claimed_by_id,
             "status": cls.STATUS_CLAIMED
-        })
+        }
+        
+        if guild_id:
+            query["guild_id"] = guild_id
+            
+        cursor = db.bounties.find(query)
         
         bounties = []
         async for document in cursor:
@@ -351,9 +378,10 @@ class Bounty(BaseModel):
             placed_by_name=placed_by_name,
             server_id=server_id,
             amount=reward,
-            bounty_type=bounty_type,
+            bounty_type=bounty_type, 
+            guild_id=guild_id,  # Pass guild_id directly
             lifespan_hours=lifespan_hours,
-            requirement={"guild_id": guild_id, "reason": reason}
+            requirement={"reason": reason}  # Remove guild_id from requirement
         )
     
     @classmethod
@@ -367,6 +395,7 @@ class Bounty(BaseModel):
         server_id: str,
         amount: int,
         bounty_type: str = TYPE_PLAYER,
+        guild_id: Optional[str] = None,
         lifespan_hours: float = 1.0,
         requirement: Optional[Dict[str, Any]] = None
     ) -> Optional['Bounty']:
@@ -398,6 +427,7 @@ class Bounty(BaseModel):
             placed_by_id=placed_by_id,
             placed_by_name=placed_by_name,
             server_id=server_id,
+            guild_id=guild_id,  # Include guild_id in constructor
             amount=amount,
             status=cls.STATUS_ACTIVE,
             bounty_type=bounty_type,
@@ -416,19 +446,20 @@ class Bounty(BaseModel):
             return None
     
     @classmethod
-    async def check_bounties_for_kill(cls, db, killer_id: str, victim_id: str) -> List['Bounty']:
+    async def check_bounties_for_kill(cls, db, killer_id: str, victim_id: str, guild_id: Optional[str] = None) -> List['Bounty']:
         """Check if a kill satisfies any active bounties
         
         Args:
             db: Database connection
             killer_id: Killer player ID
             victim_id: Victim player ID
+            guild_id: Optional guild ID to filter bounties by
             
         Returns:
             List of bounties that were claimed
         """
-        # Get active bounties for the victim
-        bounties = await cls.get_active_bounties_for_target(db, victim_id)
+        # Get active bounties for the victim, filtered by guild_id if provided
+        bounties = await cls.get_active_bounties_for_target(db, victim_id, None, guild_id)
         claimed_bounties = []
         
         for bounty in bounties:
@@ -447,22 +478,29 @@ class Bounty(BaseModel):
         return claimed_bounties
     
     @classmethod
-    async def expire_old_bounties(cls, db) -> int:
+    async def expire_old_bounties(cls, db, guild_id: Optional[str] = None) -> int:
         """Expire all bounties that have passed their expiration time
         
         Args:
             db: Database connection
+            guild_id: Optional guild ID to filter bounties by
             
         Returns:
             Number of bounties expired
         """
         now = datetime.utcnow()
         
+        query = {
+            "status": cls.STATUS_ACTIVE,
+            "expires_at": {"$lt": now}
+        }
+        
+        # Add guild_id filter if provided
+        if guild_id:
+            query["guild_id"] = guild_id
+        
         result = await db.bounties.update_many(
-            {
-                "status": cls.STATUS_ACTIVE,
-                "expires_at": {"$lt": now}
-            },
+            query,
             {
                 "$set": {
                     "status": cls.STATUS_EXPIRED,

@@ -1,30 +1,31 @@
 #!/bin/bash
 
+# Start the Tower of Temptation PvP Statistics Discord Bot
+
 # Colors for output
 GREEN='\033[0;32m'
-RED='\033[0;31m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-echo -e "${GREEN}Starting Tower of Temptation Discord Bot...${NC}"
+echo -e "${BLUE}=== Starting Tower of Temptation PvP Discord Bot ===${NC}"
+echo -e "${YELLOW}This script will start the bot in a continuous running mode${NC}"
+echo -e "${BLUE}=============================================${NC}\n"
 
-# Check for required environment variables
-required_vars=("DISCORD_TOKEN" "BOT_APPLICATION_ID" "HOME_GUILD_ID" "MONGODB_URI")
-missing_vars=()
-
-for var in "${required_vars[@]}"
-do
-  if [ -z "${!var}" ]; then
-    missing_vars+=("$var")
-  fi
-done
-
-if [ ${#missing_vars[@]} -ne 0 ]; then
-  echo -e "${RED}Error: Missing required environment variables: ${missing_vars[*]}${NC}"
-  echo -e "${YELLOW}Please set these variables in Replit Secrets.${NC}"
-  exit 1
+# Check if Python is installed
+if ! command -v python &> /dev/null; then
+    echo -e "${RED}Python is not installed. Please install Python 3.8+ to run the bot.${NC}"
+    exit 1
 fi
 
-# Launch the Discord bot using main.py
-echo -e "${GREEN}All required environment variables found. Launching bot...${NC}"
-python main.py
+# Verify that main.py exists
+if [ ! -f "main.py" ]; then
+    echo -e "${RED}main.py not found. Make sure you're in the correct directory.${NC}"
+    exit 1
+fi
+
+# Run the bot
+echo -e "${GREEN}Starting Discord bot...${NC}"
+echo -e "${YELLOW}Press Ctrl+C to stop the bot${NC}\n"
+
+python3 main.py

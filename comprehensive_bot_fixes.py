@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 Comprehensive Fixes for Tower of Temptation Discord Bot
 
@@ -8,6 +7,7 @@ This script applies all critical fixes to ensure the bot runs correctly, includi
 3. Bounties cog database initialization issues
 4. LSP errors and type inconsistencies
 5. Command error handling improvements
+6. Multi-guild isolation across all database operations
 
 Run this script to apply all fixes at once.
 """
@@ -15,23 +15,21 @@ Run this script to apply all fixes at once.
 import asyncio
 import logging
 import os
-import re
 import sys
 from pathlib import Path
+from typing import Dict, List, Optional, Any, Tuple
 
-# Set up logging
+# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[logging.StreamHandler(), logging.FileHandler("fix_bot.log")]
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler("bot_fixes.log")
+    ]
 )
-logger = logging.getLogger(__name__)
 
-# Common file paths
-HELP_COG_PATH = Path('cogs/help.py')
-BOUNTIES_COG_PATH = Path('cogs/bounties.py')
-GUILD_MODEL_PATH = Path('models/guild.py')
-MODELS_PY_PATH = Path('models.py')
+logger = logging.getLogger("bot_fixer")
 
 class BotFixer:
     """Comprehensive bot fixer"""
@@ -39,257 +37,389 @@ class BotFixer:
     @staticmethod
     async def fix_help_cog():
         """Fix the help cog to use correct Guild model method and handle coroutines properly"""
-        if not HELP_COG_PATH.exists():
-            logger.error(f"Help cog file not found at {HELP_COG_PATH}")
+        logger.info("Fixing help cog...")
+        
+        help_cog_path = Path("cogs/help.py")
+        if not help_cog_path.exists():
+            logger.error(f"Help cog file not found at {help_cog_path}")
             return False
+        
+        try:
+            # Read the file
+            with open(help_cog_path, "r") as f:
+                content = f.read()
             
-        with open(HELP_COG_PATH, 'r') as f:
-            content = f.read()
-        
-        # Fix 1: Replace Guild.get_by_id with Guild.get_by_guild_id
-        updated_content = content.replace(
-            "Guild.get_by_id(self.bot.db, guild_id)",
-            "Guild.get_by_guild_id(self.bot.db, str(guild_id))"
-        )
-        
-        # Fix 2: Handle coroutine properly
-        updated_content = updated_content.replace(
-            """try:
-                guild_model = await asyncio.wait_for(
-                    Guild.get_by_guild_id(self.bot.db, str(guild_id)), 
-                    timeout=1.0  # Short timeout to prevent blocking
-                )""",
-            """try:
-                guild_model = await asyncio.wait_for(
-                    Guild.get_by_guild_id(self.bot.db, str(guild_id)), 
-                    timeout=1.0  # Short timeout to prevent blocking
-                )"""
-        )
-        
-        # Fix 3: Ensure proper await handling for embed creation
-        if "embed = await self.create_category_embed" in updated_content:
-            updated_content = updated_content.replace(
-                "embed = await self.create_category_embed",
-                "embed = await self.create_category_embed"
-            )
-        
-        # Fix 4: Ensure proper error handling
-        if "self.logger.error(f\"Error getting guild model for /commands: {e}\")" in updated_content:
-            updated_content = updated_content.replace(
-                "self.logger.error(f\"Error getting guild model for /commands: {e}\")",
-                "self.logger.error(f\"Error getting guild model for /commands: {e}\")\n                guild_model = None"
-            )
-        
-        # Write the updated content back to the file
-        with open(HELP_COG_PATH, 'w') as f:
-            f.write(updated_content)
-        
-        logger.info("✅ Help cog fixed successfully")
-        return True
+            # Check if the file still needs fixing
+            if "get_by_id" in content and "guild = await Guild.get_by_id(db, guild_id)" in content:
+                # Replace get_by_id with get_by_guild_id
+                content = content.replace(
+                    "guild = await Guild.get_by_id(db, guild_id)",
+                    "guild = await Guild.get_by_guild_id(db, str(guild_id))"
+                )
+                
+                # Fix the error in await handling
+                content = content.replace(
+                    "if isinstance(help_text, coroutine):",
+                    "if asyncio.iscoroutine(help_text):"
+                )
+                
+                # Write the changes back
+                with open(help_cog_path, "w") as f:
+                    f.write(content)
+                    
+                logger.info("Help cog fixed successfully")
+                return True
+            else:
+                logger.info("Help cog already fixed or using different methods")
+                return True
+        except Exception as e:
+            logger.error(f"Error fixing help cog: {e}")
+            return False
     
     @staticmethod
     async def fix_bounties_cog():
         """Fix issues in the bounties cog"""
-        if not BOUNTIES_COG_PATH.exists():
-            logger.error(f"Bounties cog file not found at {BOUNTIES_COG_PATH}")
+        logger.info("Fixing bounties cog...")
+        
+        bounties_cog_path = Path("cogs/bounties.py")
+        if not bounties_cog_path.exists():
+            logger.error(f"Bounties cog file not found at {bounties_cog_path}")
             return False
+        
+        try:
+            # Read the file
+            with open(bounties_cog_path, "r") as f:
+                content = f.read()
             
-        with open(BOUNTIES_COG_PATH, 'r') as f:
-            content = f.read()
-        
-        # Fix 1: Ensure proper error handling in try/except blocks
-        # Find incomplete try blocks and fix them
-        pattern = r'try:.*?(?!except)(?!finally)(\n\s+@)'
-        updated_content = re.sub(pattern, r'try:\n        pass\1', content, flags=re.DOTALL)
-        
-        # Fix 2: Fix database initialization check
-        if "if not hasattr(self.bot, 'db') or self.bot.db is None:" in updated_content:
-            updated_content = updated_content.replace(
-                "if not hasattr(self.bot, 'db') or self.bot.db is None:",
-                "if not hasattr(self.bot, 'db') or self.bot.db is None or not hasattr(self.bot, 'database') or self.bot.database is None:"
-            )
-        
-        # Fix 3: Add proper bounty constants if missing
-        if "SOURCE_AUTO = 'auto'" not in updated_content and "class Bounty(" in updated_content:
-            bounty_constants = """
-    # Bounty source constants
-    SOURCE_AUTO = 'auto'
-    SOURCE_PLAYER = 'player'
-    SOURCE_ADMIN = 'admin'
-"""
-            updated_content = updated_content.replace(
-                "class Bounty(",
-                f"{bounty_constants}\nclass Bounty("
-            )
-        
-        # Write the updated content back to the file
-        with open(BOUNTIES_COG_PATH, 'w') as f:
-            f.write(updated_content)
-        
-        logger.info("✅ Bounties cog fixed successfully")
-        return True
+            # Check if db initialization needs fixing
+            if "self.db = None" in content and not "self.db = await get_db()" in content:
+                # Fix database initialization
+                content = content.replace(
+                    "self.db = None",
+                    "self.db = await get_db()"
+                )
+                
+                # Fix any bounty creation calls without guild_id
+                content = content.replace(
+                    "bounty = await Bounty.create(\n            db=self.db,",
+                    "bounty = await Bounty.create(\n            db=self.db,\n            guild_id=str(interaction.guild_id),"
+                )
+                
+                # Write the changes back
+                with open(bounties_cog_path, "w") as f:
+                    f.write(content)
+                    
+                logger.info("Bounties cog fixed successfully")
+                return True
+            else:
+                logger.info("Bounties cog already fixed or using different initialization")
+                return True
+        except Exception as e:
+            logger.error(f"Error fixing bounties cog: {e}")
+            return False
     
     @staticmethod
     async def fix_guild_model():
         """Fix the Guild model to ensure consistent method names"""
-        if not GUILD_MODEL_PATH.exists():
-            logger.error(f"Guild model file not found at {GUILD_MODEL_PATH}")
+        logger.info("Fixing Guild model...")
+        
+        guild_model_path = Path("models/guild.py")
+        if not guild_model_path.exists():
+            logger.error(f"Guild model file not found at {guild_model_path}")
             return False
+        
+        try:
+            # Read the file
+            with open(guild_model_path, "r") as f:
+                content = f.read()
             
-        with open(GUILD_MODEL_PATH, 'r') as f:
-            content = f.read()
-        
-        # Fix 1: Add get_by_id method if missing
-        if "@classmethod\nasync def get_by_id(" not in content and "@classmethod\nasync def get_by_guild_id(" in content:
-            get_by_id_method = """
+            # Check if get_by_guild_id method is missing
+            if "async def get_by_guild_id" not in content and "async def get_by_id" in content:
+                # Get the get_by_id method and create get_by_guild_id as an alias
+                replacement = """
     @classmethod
-    async def get_by_id(cls, db, guild_id: str) -> Optional['Guild']:
-        # Get a guild by guild_id (alias for get_by_guild_id)
-        return await cls.get_by_guild_id(db, guild_id)
-"""
-            # Find the end of the class definition
-            class_end = content.rfind('\n\n')
-            if class_end == -1:
-                # If can't find the proper position, append to the end
-                updated_content = content + get_by_id_method
+    async def get_by_guild_id(cls, db, guild_id: str) -> Optional['Guild']:
+        """Get a guild by guild_id
+        
+        Args:
+            db: Database connection
+            guild_id: Discord guild ID
+            
+        Returns:
+            Guild object or None if not found
+        """
+        return await cls.get_by_id(db, guild_id)
+        
+    @classmethod"""
+                
+                # Replace the get_by_id method definition
+                content = content.replace(
+                    "@classmethod",
+                    replacement,
+                    1  # Replace only the first occurrence
+                )
+                
+                # Write the changes back
+                with open(guild_model_path, "w") as f:
+                    f.write(content)
+                    
+                logger.info("Guild model fixed successfully")
+                return True
             else:
-                # Insert before the end of the class
-                updated_content = content[:class_end] + get_by_id_method + content[class_end:]
-        else:
-            updated_content = content
-        
-        # Write the updated content back to the file
-        with open(GUILD_MODEL_PATH, 'w') as f:
-            f.write(updated_content)
-        
-        logger.info("✅ Guild model fixed successfully")
-        return True
+                logger.info("Guild model already fixed or using different method names")
+                return True
+        except Exception as e:
+            logger.error(f"Error fixing Guild model: {e}")
+            return False
     
     @staticmethod
     async def fix_db_initialization():
         """Fix database initialization issues"""
-        # Check the bot.py file for database initialization
-        bot_path = Path('bot.py')
-        if not bot_path.exists():
-            logger.error(f"Bot file not found at {bot_path}")
-            return False
-            
-        with open(bot_path, 'r') as f:
-            content = f.read()
+        logger.info("Fixing database initialization...")
         
-        # Fix: Ensure database is initialized before cogs are loaded
-        if "async def initialize_bot" in content:
-            updated_content = content.replace(
-                "async def initialize_bot",
-                """async def ensure_database_initialized(self):
-        """Ensure database is fully initialized"""
-        if not hasattr(self, 'database') or self.database is None:
-            from utils.database import DatabaseManager
-            self.database = DatabaseManager(self.db)
-            await self.database.initialize()
+        # Check all cog files for proper database initialization
+        cogs_dir = Path("cogs")
+        if not cogs_dir.exists() or not cogs_dir.is_dir():
+            logger.error(f"Cogs directory not found at {cogs_dir}")
+            return False
+        
+        try:
+            # Get all Python files in the cogs directory
+            cog_files = list(cogs_dir.glob("*.py"))
             
-    async def initialize_bot"""
-            )
+            for cog_file in cog_files:
+                if cog_file.name.startswith("_"):
+                    continue  # Skip __init__.py and other special files
+                
+                # Read the file
+                with open(cog_file, "r") as f:
+                    content = f.read()
+                
+                # Check if db initialization needs fixing
+                if "self.db = None" in content and "__init__" in content and "async def" in content:
+                    # Fix missing database import
+                    if "from utils.database import get_db" not in content:
+                        import_section_end = content.find("class ")
+                        content = content[:import_section_end] + "from utils.database import get_db\n\n" + content[import_section_end:]
+                    
+                    # Fix the __init__ method
+                    content = content.replace(
+                        "self.db = None",
+                        "self.db = await get_db()"
+                    )
+                    
+                    # Write the changes back
+                    with open(cog_file, "w") as f:
+                        f.write(content)
+                        
+                    logger.info(f"Fixed database initialization in {cog_file.name}")
             
-            # Ensure the method is called in startup
-            if "await bot.initialize_bot" in updated_content and "await bot.ensure_database_initialized" not in updated_content:
-                updated_content = updated_content.replace(
-                    "await bot.initialize_bot",
-                    "await bot.ensure_database_initialized()\n    await bot.initialize_bot"
-                )
-            
-            # Write the updated content back to the file
-            with open(bot_path, 'w') as f:
-                f.write(updated_content)
-            
-            logger.info("✅ Database initialization fixed successfully")
+            logger.info("Database initialization fixed in all cogs")
             return True
-        else:
-            logger.warning("Could not find initialize_bot method in bot.py")
+        except Exception as e:
+            logger.error(f"Error fixing database initialization: {e}")
             return False
     
     @staticmethod
     async def fix_model_imports():
         """Fix imports in model files to resolve circular import issues"""
-        model_files = list(Path('models').glob('*.py'))
-        if not model_files:
-            logger.warning("No model files found in models directory")
+        logger.info("Fixing model imports...")
+        
+        models_dir = Path("models")
+        if not models_dir.exists() or not models_dir.is_dir():
+            logger.error(f"Models directory not found at {models_dir}")
             return False
         
-        # Track successfully fixed files
-        fixed_files = []
+        try:
+            # Get all Python files in the models directory
+            model_files = list(models_dir.glob("*.py"))
+            
+            for model_file in model_files:
+                if model_file.name.startswith("_"):
+                    continue  # Skip __init__.py and other special files
+                
+                # Read the file
+                with open(model_file, "r") as f:
+                    content = f.read()
+                
+                # Check for direct imports of other models at module level
+                circular_imports = []
+                for other_model in model_files:
+                    if other_model.name != model_file.name:
+                        model_name = other_model.stem.capitalize()
+                        if f"from models.{other_model.stem} import {model_name}" in content:
+                            circular_imports.append((other_model.stem, model_name))
+                
+                # Fix circular imports
+                for import_file, import_class in circular_imports:
+                    # Replace direct import with function-level import
+                    content = content.replace(
+                        f"from models.{import_file} import {import_class}",
+                        f"# Local import to avoid circular references\n# from models.{import_file} import {import_class}"
+                    )
+                    
+                    # Add function-level import to methods that need it
+                    method_pattern = "async def "
+                    method_positions = [pos for pos in range(len(content)) if content.find(method_pattern, pos) == pos]
+                    
+                    for pos in method_positions:
+                        method_end = content.find(":", pos)
+                        method_body_start = content.find("\n", method_end) + 1
+                        
+                        # Check if method uses the imported class
+                        method_body_end = content.find("\n    @", method_body_start)
+                        if method_body_end == -1:
+                            method_body_end = len(content)
+                        
+                        method_body = content[method_body_start:method_body_end]
+                        
+                        if import_class in method_body:
+                            # Add import inside method
+                            method_body_lines = method_body.split("\n")
+                            indent = "        "  # Assume 4-space indentation
+                            import_line = f"{indent}from models.{import_file} import {import_class}"
+                            
+                            if import_line not in method_body:
+                                method_body_lines.insert(0, import_line)
+                                new_method_body = "\n".join(method_body_lines)
+                                content = content[:method_body_start] + new_method_body + content[method_body_end:]
+                    
+                    # Write the changes back
+                    with open(model_file, "w") as f:
+                        f.write(content)
+                        
+                    logger.info(f"Fixed circular imports in {model_file.name}")
+            
+            logger.info("Model imports fixed in all model files")
+            return True
+        except Exception as e:
+            logger.error(f"Error fixing model imports: {e}")
+            return False
+    
+    @staticmethod
+    async def fix_bounty_guild_isolation():
+        """Fix guild isolation in the Bounty model"""
+        logger.info("Fixing Bounty model guild isolation...")
         
-        for model_file in model_files:
-            with open(model_file, 'r') as f:
+        bounty_model_path = Path("models/bounty.py")
+        if not bounty_model_path.exists():
+            logger.error(f"Bounty model file not found at {bounty_model_path}")
+            return False
+        
+        try:
+            # Read the file
+            with open(bounty_model_path, "r") as f:
                 content = f.read()
             
-            # Fix: Move imports inside methods to avoid circular imports
-            circular_import_pattern = r'from models\.(.*?) import (.*?)\n'
-            if re.search(circular_import_pattern, content):
-                updated_content = re.sub(
-                    circular_import_pattern,
-                    r'# Import moved inside method to avoid circular imports: from models.\1 import \2\n',
-                    content
+            # Check if methods need guild_id parameters
+            if 'async def get_active_bounties(' in content and 'guild_id: Optional[str] = None' not in content:
+                # Add guild_id parameter to get_active_bounties
+                content = content.replace(
+                    'async def get_active_bounties(cls, db, server_id: str = None)',
+                    'async def get_active_bounties(cls, db, server_id: Optional[str] = None, guild_id: Optional[str] = None)'
                 )
                 
-                # Add the imports inside the methods that need them
-                for method in re.finditer(r'async def (.*?)\((.*?)\)(.*?)\-\> [\'"]?(.*?)[\'"]?:', updated_content, re.DOTALL):
-                    return_type = method.group(4).strip()
-                    if return_type and re.search(r'\w+', return_type) and "Optional" not in method.group(0):
-                        # Get the method body indentation
-                        method_pos = method.end()
-                        next_line_pos = updated_content.find('\n', method_pos)
-                        if next_line_pos != -1:
-                            line_after_method = updated_content[method_pos+1:next_line_pos]
-                            indentation = re.match(r'(\s*)', line_after_method).group(1)
-                            
-                            # Add import at the beginning of the method
-                            import_statement = f"{indentation}# Imported inside method to avoid circular imports\n"
-                            import_statement += f"{indentation}from models.{return_type.lower()} import {return_type}\n"
-                            
-                            # Insert after the first line of the method body
-                            insert_pos = next_line_pos + 1
-                            updated_content = updated_content[:insert_pos] + import_statement + updated_content[insert_pos:]
+                # Update the query to include guild_id
+                content = content.replace(
+                    'query = {"status": cls.STATUS_ACTIVE}\n        if server_id:',
+                    'query = {"status": cls.STATUS_ACTIVE}\n        if server_id:\n            query["server_id"] = server_id\n        if guild_id:'
+                )
+                content = content.replace(
+                    '            query["server_id"] = server_id',
+                    '            query["server_id"] = server_id\n        if guild_id:\n            query["guild_id"] = guild_id'
+                )
                 
-                # Write the updated content back to the file
-                with open(model_file, 'w') as f:
-                    f.write(updated_content)
+                # Similar updates for other methods
+                if 'async def get_bounties_placed_by(' in content and 'guild_id: Optional[str] = None' not in content:
+                    content = content.replace(
+                        'async def get_bounties_placed_by(cls, db, placed_by_id: str)',
+                        'async def get_bounties_placed_by(cls, db, placed_by_id: str, guild_id: Optional[str] = None)'
+                    )
+                    content = content.replace(
+                        'cursor = db.bounties.find({"placed_by_id": placed_by_id})',
+                        'query = {"placed_by_id": placed_by_id}\n        \n        if guild_id:\n            query["guild_id"] = guild_id\n            \n        cursor = db.bounties.find(query)'
+                    )
                 
-                fixed_files.append(model_file.name)
-        
-        if fixed_files:
-            logger.info(f"✅ Fixed circular imports in model files: {', '.join(fixed_files)}")
-            return True
-        else:
-            logger.info("No circular imports found in model files")
+                if 'async def get_bounties_claimed_by(' in content and 'guild_id: Optional[str] = None' not in content:
+                    content = content.replace(
+                        'async def get_bounties_claimed_by(cls, db, claimed_by_id: str)',
+                        'async def get_bounties_claimed_by(cls, db, claimed_by_id: str, guild_id: Optional[str] = None)'
+                    )
+                    content = content.replace(
+                        'cursor = db.bounties.find({\n            "claimed_by_id": claimed_by_id,\n            "status": cls.STATUS_CLAIMED\n        })',
+                        'query = {\n            "claimed_by_id": claimed_by_id,\n            "status": cls.STATUS_CLAIMED\n        }\n        \n        if guild_id:\n            query["guild_id"] = guild_id\n            \n        cursor = db.bounties.find(query)'
+                    )
+                
+                # Update the expire_old_bounties method
+                if 'async def expire_old_bounties(' in content and 'guild_id: Optional[str] = None' not in content:
+                    content = content.replace(
+                        'async def expire_old_bounties(cls, db)',
+                        'async def expire_old_bounties(cls, db, guild_id: Optional[str] = None)'
+                    )
+                    content = content.replace(
+                        'result = await db.bounties.update_many(\n            {\n                "status": cls.STATUS_ACTIVE,\n                "expires_at": {"$lt": now}\n            },',
+                        'query = {\n            "status": cls.STATUS_ACTIVE,\n            "expires_at": {"$lt": now}\n        }\n        \n        # Add guild_id filter if provided\n        if guild_id:\n            query["guild_id"] = guild_id\n        \n        result = await db.bounties.update_many(\n            query,'
+                    )
+                
+                # Write the changes back
+                with open(bounty_model_path, "w") as f:
+                    f.write(content)
+                    
+                logger.info("Bounty model guild isolation fixed successfully")
+                return True
+            else:
+                logger.info("Bounty model guild isolation already fixed")
+                return True
+        except Exception as e:
+            logger.error(f"Error fixing Bounty model guild isolation: {e}")
             return False
     
     @staticmethod
     async def apply_all_fixes():
         """Apply all fixes at once"""
-        logger.info("Applying comprehensive fixes to Tower of Temptation Discord Bot...")
+        logger.info("Applying all fixes...")
         
-        # Fix the help cog
-        await BotFixer.fix_help_cog()
+        # List of all fix methods
+        fix_methods = [
+            BotFixer.fix_help_cog,
+            BotFixer.fix_bounties_cog,
+            BotFixer.fix_guild_model,
+            BotFixer.fix_db_initialization,
+            BotFixer.fix_model_imports,
+            BotFixer.fix_bounty_guild_isolation
+        ]
         
-        # Fix the bounties cog
-        await BotFixer.fix_bounties_cog()
+        # Apply each fix
+        results = []
+        for fix_method in fix_methods:
+            try:
+                result = await fix_method()
+                results.append((fix_method.__name__, result))
+            except Exception as e:
+                logger.error(f"Error applying fix {fix_method.__name__}: {e}")
+                results.append((fix_method.__name__, False))
         
-        # Fix the Guild model
-        await BotFixer.fix_guild_model()
+        # Print summary
+        logger.info("\n===== FIX SUMMARY =====")
+        all_passed = True
+        for fix_name, result in results:
+            status = "✅ PASSED" if result else "❌ FAILED"
+            logger.info(f"{fix_name}: {status}")
+            if not result:
+                all_passed = False
         
-        # Fix database initialization
-        await BotFixer.fix_db_initialization()
+        if all_passed:
+            logger.info("\n✅ ALL FIXES APPLIED SUCCESSFULLY")
+        else:
+            logger.error("\n❌ SOME FIXES FAILED - MANUAL INTERVENTION REQUIRED")
         
-        # Fix model imports
-        await BotFixer.fix_model_imports()
-        
-        logger.info("✅ All fixes applied successfully")
-        return True
+        return all_passed
 
 async def main():
     """Run the bot fixer"""
-    await BotFixer.apply_all_fixes()
+    logger.info("Starting Tower of Temptation Discord Bot fixer...")
+    result = await BotFixer.apply_all_fixes()
+    return 0 if result else 1
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    sys.exit(asyncio.run(main()))
