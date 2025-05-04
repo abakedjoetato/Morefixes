@@ -216,6 +216,38 @@ class Guild(BaseModel):
     async def get_by_id(cls, db, guild_id):
         """Get a guild by its Discord ID (alias for get_by_guild_id)"""
         return await cls.get_by_guild_id(db, str(guild_id))
+
+    @classmethod
+    async def create(cls, db, guild_id: str, name: str) -> Optional['Guild']:
+        """Create a new guild
+        
+        Args:
+            db: Database connection
+            guild_id: Discord guild ID
+            name: Guild name
+            
+        Returns:
+            Created Guild object or None if creation failed
+        """
+        # Create document
+        document = {
+            "guild_id": str(guild_id),
+            "name": name,
+            "premium_tier": 0,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        }
+        
+        # Insert into database
+        try:
+            result = await db.guilds.insert_one(document)
+            if result.inserted_id:
+                document["_id"] = result.inserted_id
+                return cls.from_document(document)
+        except Exception as e:
+            logger.error(f"Error creating guild: {e}")
+            
+        return None
         
     def check_feature_access(self, feature_name: str) -> bool:
         """Check if this guild has access to a premium feature
