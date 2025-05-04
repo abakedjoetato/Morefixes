@@ -1148,7 +1148,7 @@ class Setup(commands.Cog):
             # Get guild
             guild_data = await self.bot.db.guilds.find_one({"guild_id": ctx.guild.id})
             if not guild_data or not guild_data.get("servers"):
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "No Servers Found",
                     "No servers have been configured for this guild yet."
                 , guild=guild_model)
@@ -1159,7 +1159,7 @@ class Setup(commands.Cog):
             servers = guild_data.get("servers", [])
 
             # Create embed
-            embed = EmbedBuilder.create_base_embed(
+            embed = await EmbedBuilder.create_base_embed(
                 f"Configured Servers for {ctx.guild.name}",
                 f"Total servers: {len(servers)}"
             , guild=guild_model)
