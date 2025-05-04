@@ -1368,9 +1368,25 @@ class Setup(commands.Cog):
             if not await self._check_permission(ctx):
                 return
 
-            # Get guild data and check for servers
-            guild_data = await self.bot.db.guilds.find_one({"guild_id": ctx.guild.id})
-            if not guild_data or not guild_data.get("servers"):
+            # Get guild with flexible ID handling
+            guild_data = await self.bot.db.guilds.find_one({
+                "$or": [
+                    {"guild_id": ctx.guild.id},
+                    {"guild_id": str(ctx.guild.id)}
+                ]
+            })
+            
+            if not guild_data:
+                embed = await EmbedBuilder.create_error_embed(
+                    "Guild Not Found",
+                    "This guild is not set up in the database."
+                , guild=guild_model)
+                await ctx.send(embed=embed)
+                return
+
+            # Check if guild has any servers configured
+            servers = guild_data.get("servers", [])
+            if not servers:
                 embed = await EmbedBuilder.create_error_embed(
                     "No Servers Found",
                     "No servers are configured for this guild. Please add a server first using `/setup addserver`."
