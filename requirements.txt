@@ -49,3 +49,5 @@ sqlalchemy
 trafilatura>=2.0.0
 werkzeug
 asyncssh
+python-dotenv
+discord.py

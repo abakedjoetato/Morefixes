@@ -1,0 +1,12 @@
+{
+  "run": "bash run_bot.sh",
+  "processes": {
+    "discord_bot": {
+      "name": "Tower of Temptation Discord Bot",
+      "command": "bash run_bot.sh",
+      "keepAlive": true,
+      "restartAt": 0,
+      "restartPolicy": "ON_FAILURE"
+    }
+  }
+}

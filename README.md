@@ -10,6 +10,26 @@ A sophisticated Discord bot utility for comprehensive game data analysis, levera
 - Economy System: Virtual currency earned through kills
 - Premium Tiers: Scalable feature access with tiered premium options
 
+## Running the Bot on Replit
+
+### Quick Start Guide
+
+1. **Start the Bot**: Simply click the **Run** button at the top of the Replit interface.
+2. **Monitor Status**: Watch the console for startup messages. You should see:
+   - "Successfully connected to MongoDB"
+   - "Bot connected to Discord as Emeralds Killfeed"
+   - "Bot is ready for commands!"
+3. **Stop the Bot**: Click the **Stop** button to terminate the bot process.
+
+### Troubleshooting
+
+If the bot fails to start:
+- Check that all required environment variables are set in Replit Secrets
+- Verify MongoDB connection is working
+- Check Discord token validity
+
+For detailed instructions, see [RUNNING_THE_BOT.md](RUNNING_THE_BOT.md) and [TEST_BOT_LAUNCH.md](TEST_BOT_LAUNCH.md).
+
 ## Deployment Guide for Railway
 
 ### Prerequisites

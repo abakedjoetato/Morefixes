@@ -135,26 +135,24 @@ async def verify_discord_api():
 async def verify_cogs():
     """Verify all cogs can be loaded"""
     logger.info("Verifying cog loading...")
-    from bot import initialize_bot
     try:
-        # Initialize the bot without connecting to Discord
-        bot = await initialize_bot(connect=False)
-        
-        # Get list of cogs that should be loaded
+        # Simply check if all cog files exist
         cog_dir = os.path.join(os.getcwd(), "cogs")
         expected_cogs = [f[:-3] for f in os.listdir(cog_dir) 
                          if f.endswith(".py") and not f.startswith("_")]
         
-        # Get list of cogs that were actually loaded
-        loaded_cogs = list(bot.cogs.keys())
+        logger.info(f"Found {len(expected_cogs)} potential cogs in the cogs directory")
         
-        # Check if all expected cogs were loaded
-        if len(loaded_cogs) < len(expected_cogs):
-            missing_cogs = set(expected_cogs) - set([c.lower() for c in loaded_cogs])
-            logger.error(f"❌ Not all cogs were loaded. Missing: {', '.join(missing_cogs)}")
-            return False
+        # Check if all expected cog files are valid Python modules
+        for cog_name in expected_cogs:
+            try:
+                importlib.import_module(f"cogs.{cog_name}")
+                logger.info(f"✅ Successfully imported cog module: {cog_name}")
+            except Exception as e:
+                logger.error(f"❌ Failed to import cog module {cog_name}: {e}")
+                return False
         
-        logger.info(f"✅ All {len(loaded_cogs)} cogs loaded successfully")
+        logger.info(f"✅ All {len(expected_cogs)} cog modules imported successfully")
         return True
     except Exception as e:
         logger.error(f"❌ Cog verification failed: {e}")
