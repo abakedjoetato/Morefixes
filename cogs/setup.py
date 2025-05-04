@@ -543,6 +543,8 @@ class Setup(commands.Cog):
             # Get guild
             guild = await Guild.get_by_id(self.bot.db, ctx.guild.id)
             if not guild:
+                guild = await Guild.create(self.bot.db, str(ctx.guild.id), ctx.guild.name)
+            if not guild:
                 embed = await EmbedBuilder.create_error_embed(
                     "Guild Not Set Up",
                     "This guild is not set up. Please add a server first."
