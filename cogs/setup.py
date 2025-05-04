@@ -1397,34 +1397,15 @@ class Setup(commands.Cog):
                 await ctx.send(embed=embed)
                 return
 
-            # Get server
-            server = None
-            logger.info(f"Looking for server with ID '{server_id}' (type: {type(server_id).__name__}) in guild {ctx.guild.id}")
-
-            # Log all available servers for debugging
-            available_servers = []
-            for s in guild_data.get("servers", []):
-                server_id_from_db = s.get("server_id")
-                server_id_type = type(server_id_from_db).__name__
-                server_name = s.get("server_name", "Unknown")
-                available_servers.append(f"{server_name}: '{server_id_from_db}' (type: {server_id_type})")
-
-                # Convert both to strings for comparison
-                db_id_str = str(server_id_from_db) if server_id_from_db is not None else ""
-                input_id_str = str(server_id) if server_id is not None else ""
-
-                logger.info(f"Comparing server: DB ID='{db_id_str}' with input ID='{input_id_str}'")
-
-                if db_id_str == input_id_str:
-                    logger.info(f"Match found! Server '{server_name}' with ID '{db_id_str}'")
-                    server = Server(self.bot.db, s)
-                    break
-                else:
-                    logger.debug(f"No match: DB ID '{db_id_str}' ≠ input ID '{input_id_str}'")
-
-            # Log available servers if none matched
-            if not server:
-                logger.warning(f"No server found with ID '{server_id}'. Available servers: {available_servers}")
+            # Get server using our standardized server lookup utility
+            from utils.server_utils import get_server
+            server_data = await get_server(self.bot.db, server_id, ctx.guild.id)
+            
+            if server_data:
+                logger.info(f"Found server: {server_data.get('server_name')} ({server_data.get('server_id')})")
+                server = Server(self.bot.db, server_data)
+            else:
+                logger.warning(f"No server found with ID {server_id} in guild {ctx.guild.id}")
 
             if not server:
                 embed = await EmbedBuilder.create_error_embed(
