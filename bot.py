@@ -50,6 +50,9 @@ bot = commands.Bot(command_prefix=COMMAND_PREFIX, intents=intents, application_i
 # Add background_tasks dictionary to track running tasks
 bot.background_tasks = {}
 
+# Add sftp_connections dictionary to track SFTP connections
+bot.sftp_connections = {}
+
 # Track bot startup time
 start_time = datetime.utcnow()
 
