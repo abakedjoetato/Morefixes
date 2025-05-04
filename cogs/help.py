@@ -219,7 +219,7 @@ class Help(commands.Cog):
             # Try to get the guild model with timeout protection
             try:
                 guild_model = await asyncio.wait_for(
-                    Guild.get_by_id(self.bot.db, guild_id), 
+                    Guild.get_by_guild_id(self.bot.db, str(guild_id)), 
                     timeout=1.0  # Short timeout to prevent blocking
                 )
             except asyncio.TimeoutError:
@@ -253,7 +253,35 @@ class Help(commands.Cog):
             
             # Create and send view with dropdown
             view = CommandsView(self.bot, interaction.user.id, guild_id)
-            await interaction.followup.send(embed=embed, view=view)
+            
+        # Check if embed is a coroutine (shouldn't happen but let's be safe)
+        if hasattr(embed, '__await__'):
+            try:
+                embed = await embed  # Await the coroutine
+            except Exception as e:
+                self.logger.error(f"Error awaiting embed coroutine: {e}")
+                # Create a simple error embed as fallback
+                embed = discord.Embed(
+                    title="⚠️ Error Loading Help",
+                    description="There was an error loading the help information. Please try again later.",
+                    color=discord.Color.red()
+                )
+    
+        
+        # Check if embed is a coroutine (shouldn't happen but let's be safe)
+        if hasattr(embed, '__await__'):
+            try:
+                embed = await embed  # Await the coroutine
+            except Exception as e:
+                self.logger.error(f"Error awaiting embed coroutine: {e}")
+                # Create a simple error embed as fallback
+                embed = discord.Embed(
+                    title="⚠️ Error Loading Help",
+                    description="There was an error loading the help information. Please try again later.",
+                    color=discord.Color.red()
+                )
+    
+        await interaction.followup.send(embed=embed, view=view)
             
         except Exception as e:
             self.logger.error(f"Unhandled error in commands command: {e}", exc_info=True)

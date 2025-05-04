@@ -1,3 +1,4 @@
+run = "python main.py"
 modules = ["python-3.11"]
 
 [nix]
@@ -6,4 +7,4 @@ packages = ["cacert", "libsodium", "libxcrypt", "nettle", "openssh", "openssl", 
 
 [deployment]
 deploymentTarget = "autoscale"
-run = ["gunicorn", "--bind", "0.0.0.0:5000", "main:app"]
+run = ["python", "main.py"]

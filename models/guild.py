@@ -211,3 +211,8 @@ class Guild(BaseModel):
         )
         
         return result.modified_count > 0
+
+    @classmethod
+    async def get_by_id(cls, db, guild_id):
+        """Get a guild by its Discord ID (alias for get_by_guild_id)"""
+        return await cls.get_by_guild_id(db, str(guild_id))
