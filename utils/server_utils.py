@@ -28,17 +28,27 @@ async def get_server(db, server_id: str, guild_id: Union[str, int]) -> Optional[
     str_guild_id = str(guild_id)
     str_server_id = str(server_id)
 
-    # Get guild first
-    guild_data = await db.guilds.find_one({"guild_id": str_guild_id})
+    # Get guild first using flexible query
+    guild_data = await db.guilds.find_one({
+        "$or": [
+            {"guild_id": str_guild_id},
+            {"guild_id": int(str_guild_id) if str_guild_id.isdigit() else str_guild_id}
+        ]
+    })
+    
     if not guild_data:
         return None
 
-    # Look for server in guild's servers
+    # Look for server in guild's servers with consistent string comparison
     for server in guild_data.get("servers", []):
-        if str(server.get("server_id")) == str_server_id:
+        if str(server.get("server_id", "")).strip() == str_server_id.strip():
             return server
 
     return None
+
+async def get_server_by_id(db, server_id: str, guild_id: Union[str, int] = None) -> Optional[Dict[str, Any]]:
+    """Alias for get_server for compatibility"""
+    return await get_server(db, server_id, guild_id)
 
 async def check_server_existence(
     guild: discord.Guild, 
