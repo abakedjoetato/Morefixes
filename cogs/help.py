@@ -28,6 +28,7 @@ class CommandSelect(discord.ui.Select):
             discord.SelectOption(label="Stats", description="Player and server statistics", emoji="📊"),
             discord.SelectOption(label="Economy", description="Economy and gambling features", emoji="💰"),
             discord.SelectOption(label="Premium", description="Premium features and upgrades", emoji="✨"),
+            discord.SelectOption(label="Parser", description="Data parsing system information", emoji="📋"),
         ]
         
         super().__init__(placeholder="Select a category", options=options)
@@ -124,7 +125,7 @@ class CommandSelect(discord.ui.Select):
         elif category == "Stats":
             title = "📊 Stats Commands"
             description = "Player and server statistics commands"
-            premium_note = "\n\n**Note:** Requires Premium Tier 2 or higher"
+            premium_note = "\n\n**Note:** Basic stats require Bronze tier, enhanced stats require Silver or higher"
             description += premium_note
             fields = [
                 {"name": "/stats player <server> <player>", "value": "View statistics for a player", "inline": False},
@@ -132,20 +133,24 @@ class CommandSelect(discord.ui.Select):
                 {"name": "/stats leaderboard <server> <stat>", "value": "View leaderboards for a specific stat", "inline": False},
                 {"name": "/stats weapon_categories <server>", "value": "View statistics by weapon category", "inline": False},
                 {"name": "/stats weapon <server> <weapon>", "value": "View statistics for a specific weapon", "inline": False},
+                {"name": "/stats rivalry <server> <player>", "value": "View a player's rivalries (Gold+ tier)", "inline": False},
+                {"name": "/stats top_rivalries <server>", "value": "View the top rivalries on the server (Gold+ tier)", "inline": False},
             ]
             
         elif category == "Economy":
             title = "💰 Economy Commands"
             description = "Economy and gambling features"
-            premium_note = "\n\n**Note:** Basic economy requires Premium Tier 1, gambling requires Premium Tier 2"
+            premium_note = "\n\n**Note:** Basic economy requires Silver tier, gambling features available on Silver+ tiers"
             description += premium_note
             fields = [
                 {"name": "/economy balance <server>", "value": "Check your balance", "inline": False},
                 {"name": "/economy daily <server>", "value": "Claim your daily reward", "inline": False},
                 {"name": "/economy leaderboard <server>", "value": "View the richest players", "inline": False},
                 {"name": "/economy give <server> <user> <amount>", "value": "Give credits to another player", "inline": False},
-                {"name": "/gambling blackjack <server> [bet]", "value": "Play blackjack (Premium Tier 2+)", "inline": False},
-                {"name": "/gambling slots <server> [bet]", "value": "Play slots (Premium Tier 2+)", "inline": False},
+                {"name": "/economy stats <server>", "value": "View server economy statistics", "inline": False},
+                {"name": "/gambling blackjack <server> [bet]", "value": "Play blackjack (Silver+ tiers)", "inline": False},
+                {"name": "/gambling slots <server> [bet]", "value": "Play slots (Silver+ tiers)", "inline": False},
+                {"name": "/gambling roulette <server> [bet] [bet_type]", "value": "Play roulette (Silver+ tiers)", "inline": False},
             ]
             
         elif category == "Premium":
@@ -155,10 +160,23 @@ class CommandSelect(discord.ui.Select):
                 {"name": "/premium status", "value": "Check the premium status of this guild", "inline": False},
                 {"name": "/premium upgrade", "value": "Request a premium upgrade", "inline": False},
                 {"name": "/premium features", "value": "View available premium features", "inline": False},
-                {"name": "/premium set_theme", "value": "Set the theme for embed displays (Premium Tier 3+ only)", "inline": False},
+                {"name": "/premium tiers", "value": "Display available premium tiers and their features", "inline": False},
+                {"name": "/premium set_theme", "value": "Set the theme for embed displays (Gold+ tiers only)", "inline": False},
             ]
             # Add premium tiers information
-            fields.append({"name": "Premium Tiers", "value": "**Free**: Basic commands\n**Tier 1 ($)**: Economy, Events\n**Tier 2 ($$)**: Statistics, Gambling\n**Tier 3 ($$$)**: Custom Themes", "inline": False})
+            fields.append({"name": "Premium Tiers", "value": "**Free**: Basic server management\n**Bronze**: Basic stats, simple killfeeds\n**Silver**: Enhanced stats, basic economy, simple gambling\n**Gold**: Full stats, economy, rivalries, basic bounties\n**Platinum**: All features including advanced bounties, all gambling games", "inline": False})
+        
+        elif category == "Parser":
+            title = "📋 Parser System"
+            description = "Tower of Temptation PvP Stats uses a sophisticated three-part parsing system for comprehensive data collection"
+            fields = [
+                {"name": "Historical CSV Parser", "value": "Processes historical data from CSV files to establish baseline statistics", "inline": False},
+                {"name": "5-Minute CSV Parser", "value": "Processes new CSV data every 5 minutes for regular updates", "inline": False},
+                {"name": "Real-time Log Parser", "value": "Monitors server logs in real-time for immediate event notifications", "inline": False},
+                {"name": "Commands", "value": "/setup historical_parse <server> - Process all historical data\n/setup test_connection <server> - Test SFTP connectivity", "inline": False},
+                {"name": "Event Normalization", "value": "All three parsers normalize data to ensure consistent event handling and deduplication", "inline": False},
+                {"name": "Data Deduplication", "value": "System automatically detects and prevents duplicate event processing across all three parsers", "inline": False},
+            ]
         
         else:
             # Default fallback
