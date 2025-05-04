@@ -253,16 +253,16 @@ class SFTPClient:
             # Construct path to logs directory
             server_dir = f"{self.hostname.split(':')[0]}_{self.server_id}"
             log_path = os.path.join(".", server_dir, "Logs")
-
-            # Check specifically for Deadside.log
             deadside_log = os.path.join(log_path, "Deadside.log")
 
-            # Verify file exists
+            # Verify file exists and log the path we're checking
             try:
+                logger.info(f"Checking for Deadside.log at path: {deadside_log}")
                 await self._sftp_client.stat(deadside_log)
+                logger.info(f"Found Deadside.log at: {deadside_log}")
                 return deadside_log
-            except:
-                logger.warning(f"Deadside.log not found in {log_path}")
+            except Exception as e:
+                logger.warning(f"Deadside.log not found in {log_path}: {e}")
                 return None
 
         except Exception as e:
