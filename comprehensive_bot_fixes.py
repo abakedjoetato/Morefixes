@@ -139,7 +139,7 @@ class BotFixer:
                 replacement = """
     @classmethod
     async def get_by_guild_id(cls, db, guild_id: str) -> Optional['Guild']:
-        """Get a guild by guild_id
+        \"\"\"Get a guild by guild_id
         
         Args:
             db: Database connection
@@ -147,7 +147,7 @@ class BotFixer:
             
         Returns:
             Guild object or None if not found
-        """
+        \"\"\"
         return await cls.get_by_id(db, guild_id)
         
     @classmethod"""

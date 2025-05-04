@@ -1,58 +1,49 @@
 #!/bin/bash
 
-# Script to run both the Discord bot and the web application for the
-# Tower of Temptation PvP Statistics Bot
+# Run the complete Tower of Temptation PvP Statistics System (both bot and web app)
 
-echo "Starting Tower of Temptation PvP Statistics Bot System..."
+# Colors for output
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+BOLD='\033[1m'
+NC='\033[0m' # No Color
 
-# Make scripts executable
-chmod +x start_discord_bot.sh
+echo -e "${BLUE}${BOLD}=== Tower of Temptation PvP Complete System ===\n${NC}"
+echo -e "${GREEN}Starting both web app and Discord bot in separate processes...${NC}"
+echo -e "${YELLOW}Press Ctrl+C to stop both components${NC}\n"
+
+# Make sure all scripts are executable
 chmod +x start_web_app.sh
+chmod +x discord_bot.sh
 
-# Check for required environment variables
-echo "Checking environment variables..."
-
-if [ -z "$DISCORD_TOKEN" ]; then
-    echo "Error: DISCORD_TOKEN environment variable is not set."
-    echo "Please set the DISCORD_TOKEN environment variable to your Discord bot token."
-    exit 1
-fi
-
-if [ -z "$DATABASE_URL" ]; then
-    echo "Error: DATABASE_URL environment variable is not set."
-    echo "Please set the DATABASE_URL environment variable for your PostgreSQL database."
-    exit 1
-fi
-
-if [ -z "$MONGODB_URI" ]; then
-    echo "Error: MONGODB_URI environment variable is not set."
-    echo "Please set the MONGODB_URI environment variable for your MongoDB database."
-    exit 1
-fi
-
-# Create data directories if they don't exist
-mkdir -p data/logs
-
-# Start both services in the background
-echo "Starting Discord bot..."
-./start_discord_bot.sh &
-BOT_PID=$!
-
-echo "Starting web application..."
+# Start the web app in background
+echo -e "${GREEN}Starting web app on port 5000...${NC}"
 ./start_web_app.sh &
 WEB_PID=$!
 
-# Handle shutdown
+# Start the Discord bot
+echo -e "${GREEN}Starting Discord bot...${NC}"
+./discord_bot.sh &
+BOT_PID=$!
+
+# Handle graceful shutdown
 function cleanup {
-    echo "Shutting down services..."
-    kill $BOT_PID
-    kill $WEB_PID
-    exit 0
+  echo -e "\n${YELLOW}Shutting down both components...${NC}"
+  kill -TERM $WEB_PID 2>/dev/null
+  kill -TERM $BOT_PID 2>/dev/null
+  wait
+  echo -e "${GREEN}All components stopped. Goodbye!${NC}"
+  exit 0
 }
 
-# Register the cleanup function for signals
+# Trap SIGINT (Ctrl+C) and SIGTERM
 trap cleanup SIGINT SIGTERM
 
-# Keep the script running
-echo "Both services started. Press Ctrl+C to stop."
+# Keep script running
+echo -e "${GREEN}All components started. System is now running.${NC}"
+echo -e "${YELLOW}Access the web dashboard at: http://localhost:5000${NC}"
+echo -e "${YELLOW}Press Ctrl+C to shut down both components${NC}\n"
+
+# Wait for both processes
 wait

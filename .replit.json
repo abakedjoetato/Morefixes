@@ -1,12 +1,60 @@
 {
-  "run": "bash run_bot.sh",
-  "processes": {
+  "run": {
+    "language": "python",
+    "onBoot": "",
+    "command": "python main.py"
+  },
+  "env": [
+    "DISCORD_TOKEN",
+    "BOT_APPLICATION_ID", 
+    "HOME_GUILD_ID",
+    "MONGODB_URI",
+    "PGPASSWORD",
+    "PGUSER",
+    "DATABASE_URL",
+    "PGPORT",
+    "PGDATABASE",
+    "PGHOST",
+    "SESSION_SECRET"
+  ],
+  "works": true,
+  "deploymentTarget": "cloudrun",
+  "languages": {
+    "Python": {
+      "compilers": ["python3"],
+      "lsp": ["python-lsp-server", "pylsp"]
+    }
+  },
+  "workflows": {
     "discord_bot": {
-      "name": "Tower of Temptation Discord Bot",
-      "command": "bash run_bot.sh",
-      "keepAlive": true,
-      "restartAt": 0,
-      "restartPolicy": "ON_FAILURE"
+      "name": "Discord Bot",
+      "installCommand": "",
+      "startCommand": "bash discord_bot.sh",
+      "restartAt": "10:00",
+      "restartPolicy": {
+        "delay": "12h",
+        "maxAttempts": -1
+      }
+    },
+    "web_app": {
+      "name": "Web Application",
+      "installCommand": "",
+      "startCommand": "bash start_web_app.sh",
+      "restartAt": "10:00",
+      "restartPolicy": {
+        "delay": "12h",
+        "maxAttempts": -1
+      }
+    },
+    "complete_system": {
+      "name": "Complete System",
+      "installCommand": "",
+      "startCommand": "python main.py",
+      "restartAt": "10:00",
+      "restartPolicy": {
+        "delay": "12h",
+        "maxAttempts": -1
+      }
     }
   }
 }

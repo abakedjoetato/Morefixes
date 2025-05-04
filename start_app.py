@@ -1,29 +1,23 @@
 """
-Tower of Temptation PvP Statistics Platform - Unified Entry Point
+Tower of Temptation PvP Statistics System Launcher
 
-This script provides a single entry point for the full Tower of Temptation PvP Statistics platform,
-capable of launching either:
-1. The Discord bot for game statistics tracking
-2. The web dashboard for admin access and statistics visualization
+This script serves as the main entry point for both the Discord bot and web application
+components of the Tower of Temptation PvP Statistics system. It will:
 
-Usage:
-    python start_app.py                  # Start both the Discord bot and web app
-    python start_app.py --bot-only       # Start only the Discord bot
-    python start_app.py --web-only       # Start only the web app
-    
-The script handles environment validation, proper initialization sequences, and ensures
-that the components are started in the correct order with proper error handling.
+1. Start the Discord bot in a background process
+2. Start the Flask web application
+
+This allows both components to run simultaneously from a single entry point,
+which is ideal for deployment on platforms like Replit.
 """
-
-import argparse
-import asyncio
-import logging
 import os
 import sys
+import subprocess
 import threading
+import signal
 import time
-from datetime import datetime
-from typing import Optional, Dict, Any, List, Tuple
+import logging
+from typing import List, Optional, Dict, Any
 
 # Configure logging
 logging.basicConfig(
@@ -31,169 +25,147 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler("tower_of_temptation.log")
+        logging.FileHandler("system.log")
     ]
 )
-logger = logging.getLogger("TowerOfTemptation")
 
-# Required environment variables
-REQUIRED_ENV_VARS = {
-    "discord_bot": [
-        "DISCORD_TOKEN",
-        "BOT_APPLICATION_ID", 
-        "MONGODB_URI",
-        "HOME_GUILD_ID"
-    ],
-    "web_app": [
-        "DATABASE_URL",
-        "FLASK_SECRET_KEY"
-    ]
-}
+logger = logging.getLogger(__name__)
 
-def validate_environment(component: str) -> Tuple[bool, List[str]]:
-    """
-    Validate environment variables for a specific component.
+# Global variables to track processes
+processes: Dict[str, subprocess.Popen] = {}
+running = True
+
+def start_process(name: str, cmd: List[str], env: Optional[Dict[str, str]] = None) -> None:
+    """Start a process and store it in the processes dictionary.
     
     Args:
-        component: Either 'discord_bot' or 'web_app'
-        
-    Returns:
-        Tuple of (is_valid, missing_vars)
+        name: Name of the process for identification
+        cmd: Command list to execute
+        env: Optional environment variables
     """
-    if component not in REQUIRED_ENV_VARS:
-        logger.error(f"Unknown component: {component}")
-        return False, []
-        
-    required_vars = REQUIRED_ENV_VARS[component]
-    missing_vars = [var for var in required_vars if not os.environ.get(var)]
-    
-    if missing_vars:
-        logger.warning(f"Missing environment variables for {component}: {', '.join(missing_vars)}")
-        return False, missing_vars
-    
-    logger.info(f"All required environment variables present for {component}")
-    return True, []
-
-def run_flask_app():
-    """Start the Flask web application."""
-    logger.info("Starting Flask web application...")
-    
     try:
-        # Import here to avoid circular imports and to make this module independent
-        from app import app
+        logger.info(f"Starting {name}...")
         
-        # Default to port 5000 if none is specified
-        port = int(os.environ.get("PORT", 5000))
+        # Merge current environment with additional vars if provided
+        proc_env = os.environ.copy()
+        if env:
+            proc_env.update(env)
+            
+        proc = subprocess.Popen(
+            cmd,
+            env=proc_env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            universal_newlines=True
+        )
         
-        # Use 0.0.0.0 to make the server externally visible
-        app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
+        processes[name] = proc
+        logger.info(f"{name} started with PID {proc.pid}")
+        
+        # Start a thread to monitor process output
+        threading.Thread(target=monitor_output, args=(name, proc), daemon=True).start()
     except Exception as e:
-        logger.error(f"Failed to start Flask web application: {e}", exc_info=True)
-        return False
-    
-    return True
+        logger.error(f"Failed to start {name}: {e}")
 
-async def run_discord_bot():
-    """Start the Discord bot."""
-    logger.info("Starting Discord bot...")
+def monitor_output(name: str, proc: subprocess.Popen) -> None:
+    """Monitor and log the output of a process.
     
+    Args:
+        name: Process name
+        proc: Process object
+    """
     try:
-        # Import the bot module functions here to avoid circular imports
-        from bot import initialize_bot
-        
-        token = os.environ.get("DISCORD_TOKEN")
-        if not token:
-            logger.error("DISCORD_TOKEN environment variable not set")
-            return False
-        
-        # Initialize and start the bot
-        bot = await initialize_bot(force_sync=True)
-        await bot.start(token)
+        if proc.stdout:
+            for line in proc.stdout:
+                logger.info(f"[{name}] {line.strip()}")
     except Exception as e:
-        logger.error(f"Failed to start Discord bot: {e}", exc_info=True)
-        return False
+        logger.error(f"Error monitoring {name} output: {e}")
     
-    return True
+    exit_code = proc.poll()
+    if exit_code is not None:
+        logger.info(f"{name} exited with code {exit_code}")
+        
+        # Restart the process if it died and system is still running
+        if running and exit_code != 0:
+            logger.info(f"Restarting {name}...")
+            if name == "discord_bot":
+                start_discord_bot()
+            elif name == "web_app":
+                start_web_app()
 
-def start_web_app_thread():
-    """Start the web app in a separate thread."""
-    is_valid, missing_vars = validate_environment("web_app")
-    if not is_valid:
-        logger.error(f"Cannot start web app due to missing environment variables: {', '.join(missing_vars)}")
-        return None
-    
-    web_thread = threading.Thread(target=run_flask_app, daemon=True)
-    web_thread.start()
-    logger.info("Web application thread started")
-    return web_thread
+def start_discord_bot() -> None:
+    """Start the Discord bot component."""
+    bot_cmd = ["python", "main.py"]
+    start_process("discord_bot", bot_cmd)
 
-async def start_discord_bot():
-    """Start the Discord bot."""
-    is_valid, missing_vars = validate_environment("discord_bot")
-    if not is_valid:
-        logger.error(f"Cannot start Discord bot due to missing environment variables: {', '.join(missing_vars)}")
-        return False
-    
-    return await run_discord_bot()
+def start_web_app() -> None:
+    """Start the web application component."""
+    web_cmd = ["python", "app.py"]
+    # Set specific environment for web app if needed
+    web_env = {"PORT": "5000"}
+    start_process("web_app", web_cmd, web_env)
 
-async def main():
-    """Main entry point for the application."""
-    # Parse command line arguments
-    parser = argparse.ArgumentParser(description="Tower of Temptation PvP Statistics Platform")
-    parser.add_argument("--bot-only", action="store_true", help="Start only the Discord bot")
-    parser.add_argument("--web-only", action="store_true", help="Start only the web application")
-    args = parser.parse_args()
+def cleanup() -> None:
+    """Clean up all processes on shutdown."""
+    global running
+    running = False
+    logger.info("Shutting down all components...")
     
-    # Log startup information
-    logger.info("=== Tower of Temptation PvP Statistics Platform ===")
-    logger.info(f"Starting up at {datetime.now().isoformat()}")
-    logger.info(f"Python version: {sys.version}")
-    logger.info(f"Operating system: {sys.platform}")
+    for name, proc in processes.items():
+        try:
+            logger.info(f"Terminating {name}...")
+            proc.terminate()
+            # Give process 5 seconds to terminate gracefully
+            for _ in range(5):
+                if proc.poll() is not None:
+                    break
+                time.sleep(1)
+            
+            # Force kill if still running
+            if proc.poll() is None:
+                logger.info(f"Force killing {name}...")
+                proc.kill()
+        except Exception as e:
+            logger.error(f"Error terminating {name}: {e}")
     
-    # Determine which components to start
-    start_bot = not args.web_only
-    start_web = not args.bot_only
+    logger.info("All components stopped.")
+
+def handle_signal(signum, frame) -> None:
+    """Signal handler for graceful shutdown."""
+    logger.info(f"Received signal {signum}, shutting down...")
+    cleanup()
+    sys.exit(0)
+
+def main() -> None:
+    """Main entry point to start all system components."""
+    logger.info("Starting Tower of Temptation PvP Statistics System...")
     
-    if start_web:
-        logger.info("Web application enabled")
-        web_thread = start_web_app_thread()
-        if not web_thread:
-            logger.error("Failed to start web application")
-            if not start_bot:
-                return  # Exit if only web app was requested
+    # Register signal handlers for graceful shutdown
+    signal.signal(signal.SIGINT, handle_signal)
+    signal.signal(signal.SIGTERM, handle_signal)
     
-    if start_bot:
-        logger.info("Discord bot enabled")
-        success = await start_discord_bot()
-        if not success:
-            logger.error("Failed to start Discord bot")
-            if not start_web:
-                return  # Exit if only bot was requested
+    # Start components
+    start_discord_bot()
+    start_web_app()
     
-    # Keep the main thread alive as long as any component is running
-    web_thread = None  # Initialize to avoid unbound variable warning
+    logger.info("All components started successfully!")
     
     try:
-        web_thread_active = False
-        
-        while True:
-            # Check if web thread is active
-            if start_web and web_thread and web_thread.is_alive():
-                web_thread_active = True
-                await asyncio.sleep(1)
-            elif start_bot:
-                # Bot runs in the main thread, we won't reach here unless it fails
-                break
-            elif not web_thread_active:
-                # No components are running
-                logger.warning("No components are running, shutting down")
-                break
+        # Keep main thread alive to receive signals
+        while running:
+            # Check if processes are still running and restart if needed
+            for name, proc in list(processes.items()):
+                if proc.poll() is not None and running:
+                    logger.warning(f"{name} has exited with code {proc.poll()}, restarting...")
+                    if name == "discord_bot":
+                        start_discord_bot()
+                    elif name == "web_app":
+                        start_web_app()
+            time.sleep(5)
     except KeyboardInterrupt:
-        logger.info("Received shutdown signal, shutting down...")
-    except Exception as e:
-        logger.error(f"Error in main thread: {e}", exc_info=True)
-    
-    logger.info("Tower of Temptation PvP Statistics Platform shutting down")
+        pass
+    finally:
+        cleanup()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()

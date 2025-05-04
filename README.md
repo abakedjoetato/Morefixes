@@ -1,136 +1,171 @@
-# Emeralds PvP Stats Bot
+# Tower of Temptation PvP Statistics System
 
-A sophisticated Discord bot utility for comprehensive game data analysis, leveraging advanced event tracking and dynamic visualization techniques for Deadside.
+A comprehensive gaming statistics system that combines a powerful Discord bot with a web dashboard for tracking Tower of Temptation PvP gameplay data. This system offers multi-guild isolation, robust player statistics, and advanced rivalry tracking.
 
 ## Features
 
-- PvP Kill Tracking: Real-time monitoring and stats for player kills
-- Event Tracking: Monitor in-game events like airdrops, missions, and trader spawns
-- Player Statistics: Comprehensive player performance metrics
-- Economy System: Virtual currency earned through kills
-- Premium Tiers: Scalable feature access with tiered premium options
+- **PvP Kill Tracking**: Real-time monitoring and detailed statistics for player kills
+- **Multi-Guild Support**: Complete isolation of data between Discord servers
+- **Player Rivalries**: Track nemesis and prey relationships between players
+- **Bounty System**: Place bounties on players and claim rewards for fulfilling them
+- **Server Statistics**: Detailed statistics for each game server
+- **Web Dashboard**: View leaderboards, stats, and player information on a responsive web interface
+- **Historical Parsing**: Process historical game logs to build a comprehensive statistics database
 
-## Running the Bot on Replit
+## Running the Complete System on Replit
 
 ### Quick Start Guide
 
-1. **Start the Bot**: Simply click the **Run** button at the top of the Replit interface.
+1. **Start the System**: Simply click the **Run** button at the top of the Replit interface.
 2. **Monitor Status**: Watch the console for startup messages. You should see:
-   - "Successfully connected to MongoDB"
-   - "Bot connected to Discord as Emeralds Killfeed"
-   - "Bot is ready for commands!"
-3. **Stop the Bot**: Click the **Stop** button to terminate the bot process.
+   - "Starting Tower of Temptation PvP Statistics System..."
+   - "Discord Bot started with PID [number]"
+   - "Web Application started with PID [number]"
+   - "All components started successfully!"
+3. **Access Components**: 
+   - Web Dashboard: Available at the Replit webview
+   - Discord Bot: Will appear online in your Discord server
+4. **Stop the System**: Click the **Stop** button to terminate all processes.
+
+### Running Individual Components
+
+You can also run just the Discord bot or just the web application using Replit workflows:
+
+1. Go to the "Tools" tab in Replit
+2. Select "Workflows"
+3. Choose one of the following:
+   - "Discord Bot" - Runs only the Discord bot
+   - "Web Application" - Runs only the web dashboard
+   - "Complete System" - Runs both components together
 
 ### Troubleshooting
 
-If the bot fails to start:
+If the system fails to start:
 - Check that all required environment variables are set in Replit Secrets
-- Verify MongoDB connection is working
-- Check Discord token validity
+- Verify MongoDB and PostgreSQL connections are working
+- Check Discord token validity and permissions
 
-For detailed instructions, see [RUNNING_THE_BOT.md](RUNNING_THE_BOT.md) and [TEST_BOT_LAUNCH.md](TEST_BOT_LAUNCH.md).
+For detailed instructions, see [RUNNING_THE_BOT.md](RUNNING_THE_BOT.md).
 
-## Deployment Guide for Railway
+## System Architecture
 
-### Prerequisites
+The Tower of Temptation PvP Statistics System consists of two main components:
 
-1. Create a Railway account: https://railway.app/
-2. Install Railway CLI: https://docs.railway.app/develop/cli
+### 1. Discord Bot
 
-### Steps to Deploy
+The Discord bot component is responsible for:
+- Interacting with users via Discord commands
+- Processing game statistics from CSV files
+- Managing player leaderboards and rivalries
+- Handling the bounty system
+- Providing real-time statistics via Discord embeds
 
-1. **Login to Railway**
+### 2. Web Dashboard
 
-```bash
-railway login
-```
+The web application provides:
+- A visual overview of PvP statistics
+- Leaderboards for top players
+- Rivalry tracking and visualization
+- Admin controls for system configuration
+- Server performance statistics
 
-2. **Link the Project**
+## Environment Variables
 
-```bash
-railway link
-```
+The system requires the following environment variables:
 
-*Note: Dependencies are automatically installed based on the configuration in railway.json*
-
-3. **Set Required Environment Variables**
-
-From the Railway dashboard, add the following environment variables:
-
+### Discord Bot
 - `DISCORD_TOKEN`: Your Discord bot token
-- `MONGODB_URI`: MongoDB connection string
+- `BOT_APPLICATION_ID`: Your Discord application ID
 - `HOME_GUILD_ID`: Discord ID of your home/main guild
+- `MONGODB_URI`: MongoDB connection string
 
-4. **Deploy the Bot**
+### Web Dashboard
+- `DATABASE_URL`: PostgreSQL database connection string
+- `SESSION_SECRET`: Secret key for session management
+- `PORT`: Web server port (default: 5000)
+
+## Multi-Guild Isolation
+
+The Tower of Temptation PvP Statistics System is designed with robust multi-guild isolation:
+
+- Each Discord server (guild) has its own isolated data
+- Player statistics are tracked separately for each guild
+- Server configurations are guild-specific
+- Commands operate only on the guild where they're executed
+
+This ensures that multiple Discord communities can use the bot without data leakage between them.
+
+## Database Architecture
+
+The system uses two separate databases:
+
+1. **MongoDB** - For the Discord bot's real-time data:
+   - Player statistics
+   - Kill events
+   - Faction information
+   - Rivalries and bounties
+
+2. **PostgreSQL** - For the web dashboard:
+   - User accounts and authentication
+   - Dashboard configuration
+   - Performance metrics
+   - Long-term statistics
+
+## System Utilities
+
+The Tower of Temptation PvP Statistics System includes several utilities for maintenance and management:
+
+### Bot Management Scripts
 
 ```bash
-railway up
+# Start the complete system (both bot and web app)
+./run_complete_system.sh
+
+# Start only the Discord bot
+./discord_bot.sh
+
+# Start only the web application
+./start_web_app.sh
+
+# Apply all bot fixes
+python comprehensive_bot_fixes.py
 ```
 
-5. **Verify Status**
-
-Check the deployment status in your Railway dashboard.
-
-### Alternative Deployment Method
-
-You can also deploy directly from GitHub:
-
-1. Fork this repository
-2. Connect your Railway project to your GitHub repository
-3. Railway will automatically detect the configuration and start the deployment
-4. Set the required environment variables in the Railway dashboard
-5. Your bot will automatically deploy and start running
-
-## Configuration
-
-The bot will use the environment variables set in Railway. Make sure all required variables are set before deployment.
-
-## Monitoring
-
-Monitor your bot's logs and performance in the Railway dashboard to ensure it's functioning correctly.
-
-## Maintenance Tools
-
-This bot includes maintenance utilities to help with troubleshooting and management:
-
-### Restart Script
-
-If you need to manually restart the bot, use:
+### Diagnostic Tools
 
 ```bash
-./restart_bot.sh
+# Verify bot startup and environment
+python validate_bot_startup.py
+
+# Test comprehensive functionality
+python test_all_functionality.py
+
+# Check multi-guild isolation
+python test_multi_guild_isolation.py
+
+# Diagnose server issues
+python diagnose_server.py
 ```
 
-This will terminate the current bot process and allow the workflow system to restart it automatically.
-
-### Maintenance Utility
-
-The `maintenance.py` script provides various utilities for maintaining and troubleshooting the bot:
+### Database Tools
 
 ```bash
-# Show available commands
-python maintenance.py help
-
-# Restart the bot
-python maintenance.py restart
-
-# List all configured servers
-python maintenance.py list_servers
-
-# Run diagnostics on the database
-python maintenance.py diagnose
+# Check database connectivity
+python check_db.py
 
 # Fix type inconsistencies in the database
-python maintenance.py fix_types
-
-# Clear error states in the database
-python maintenance.py clear_errors
+python fix_server_validation.py
 ```
 
-### Type Handling
+## Data Security
 
-All channel IDs are stored as integers in the database and explicitly converted to integers before being used with Discord's API. This ensures consistent behavior across the application.
+All server IDs, user IDs, and other sensitive identifiers are properly typed and validated throughout the codebase:
+
+- Guild IDs are stored as integers in MongoDB
+- Server IDs (for game servers) are stored as strings for compatibility
+- All IDs are validated before use in database operations
+- Input validation is performed on all user-submitted data
 
 ---
 
-Powered By Discord.gg/EmeraldServers
+Tower of Temptation PvP Statistics System © 2025

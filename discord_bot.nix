@@ -1,12 +1,19 @@
+{ pkgs }:
+
 {
-  pname = "tower-of-temptation-discord-bot";
-  version = "1.0.0";
-  buildInputs = [
-    pkgs.python311
-    pkgs.python311Packages.discord-py
-    pkgs.python311Packages.motor
-    pkgs.python311Packages.pymongo
-    pkgs.python311Packages.asyncssh
-    pkgs.python311Packages.python-dotenv
+  deps = [
+    pkgs.python310
+    pkgs.python310Packages.discord-py
+    pkgs.python310Packages.motor
+    pkgs.python310Packages.pymongo
+    pkgs.python310Packages.python-dotenv
+    pkgs.python310Packages.asyncssh
+    pkgs.python310Packages.aiohttp
+    pkgs.python310Packages.pillow
   ];
+  
+  env = {
+    PYTHONUNBUFFERED = "1";
+    PYTHONPATH = ".";
+  };
 }
