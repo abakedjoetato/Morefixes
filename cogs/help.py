@@ -50,7 +50,7 @@ class CommandSelect(discord.ui.Select):
         try:
             # Use a short timeout to prevent blocking
             guild_model = await asyncio.wait_for(
-                Guild.get_by_id(self.bot.db, self.guild_id),
+                Guild.get_by_guild_id(self.bot.db, str(self.guild_id)),
                 timeout=1.0
             )
         except asyncio.TimeoutError:
@@ -295,25 +295,33 @@ class Help(commands.Cog):
             view = CommandsView(self.bot, interaction.user.id, guild_id)
             
             # Check if embed is a coroutine (shouldn't happen but let's be safe)
-            if hasattr(embed, '__await__'):
+            try:
+                if hasattr(embed, '__await__'):
+                    try:
+                        embed = await embed  # Await the coroutine
+                    except Exception as e:
+                        # Use bot.logger if self.logger is not defined
+                        logger = getattr(self, 'logger', getattr(self.bot, 'logger', None))
+                        if logger:
+                            logger.error(f"Error awaiting embed coroutine: {e}")
+                        else:
+                            print(f"Error awaiting embed coroutine: {e}")
+                        # Create a simple error embed as fallback
+                        embed = discord.Embed(
+                            title="⚠️ Error Loading Help",
+                            description="There was an error loading the help information. Please try again later.",
+                            color=discord.Color.red()
+                        )
+                
+                # Send the help message
+                await interaction.followup.send(embed=embed, view=view)
+            except Exception as e:
+                self.logger.error(f"Error sending help message: {e}")
+                # Try to send a simpler message
                 try:
-                    embed = await embed  # Await the coroutine
-                except Exception as e:
-                    # Use bot.logger if self.logger is not defined
-                    logger = getattr(self, 'logger', getattr(self.bot, 'logger', None))
-                    if logger:
-                        logger.error(f"Error awaiting embed coroutine: {e}")
-                    else:
-                        print(f"Error awaiting embed coroutine: {e}")
-                    # Create a simple error embed as fallback
-                    embed = discord.Embed(
-                        title="⚠️ Error Loading Help",
-                        description="There was an error loading the help information. Please try again later.",
-                        color=discord.Color.red()
-                    )
-            
-            # Send the help message
-            await interaction.followup.send(embed=embed, view=view)
+                    await interaction.followup.send("An error occurred loading the help menu. Please try again later.")
+                except:
+                    pass
             
         except Exception as e:
             # Use bot.logger if self.logger is not defined

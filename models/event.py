@@ -156,15 +156,21 @@ class Connection:
         result = await db.connections.insert_one(connection_data)
         connection_data["_id"] = result.inserted_id
         
-        # Create or update player
-        from models.player import Player
+        # Create or update player in players collection directly
+        # (avoiding circular import of Player model)
         player_data = {
             "player_id": connection_data["player_id"],
             "player_name": connection_data["player_name"],
             "server_id": connection_data["server_id"],
             "active": True
         }
-        await Player.create_or_update(db, player_data)
+        
+        # Insert or update the player document
+        await db.players.update_one(
+            {"player_id": player_data["player_id"], "server_id": player_data["server_id"]},
+            {"$set": player_data},
+            upsert=True
+        )
         
         return cls(db, connection_data)
     
@@ -204,9 +210,13 @@ class Connection:
     @classmethod
     async def get_online_players(cls, db, server_id: str) -> tuple:
         """Get currently online players"""
-        # Get the last server restart event
-        from models.event import Event
-        restart_event = await Event.get_latest_by_type(db, server_id, "server_restart")
+        # Get the last server restart event directly from db to avoid circular imports
+        # Find latest restart event
+        restart_event_data = await db.events.find_one(
+            {"server_id": server_id, "event_type": "server_restart"},
+            sort=[("timestamp", -1)]
+        )
+        restart_event = cls(db, restart_event_data) if restart_event_data else None
         
         restart_time = restart_event.timestamp if restart_event else datetime(1970, 1, 1)
         

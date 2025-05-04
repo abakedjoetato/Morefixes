@@ -25,7 +25,7 @@ from models.player_link import PlayerLink
 from utils.decorators import premium_tier_required, has_admin_permission, has_mod_permission
 from utils.embed_builder import EmbedBuilder
 from utils.discord_utils import get_server_selection
-from utils.server_utils import check_server_existence, get_server_data
+from utils.server_utils import check_server_exists, get_server_by_id
 
 logger = logging.getLogger(__name__)
 
@@ -398,7 +398,7 @@ class BountiesCog(commands.GroupCog, name="bounty"):
                 return
                 
             # Use the utility method to check if the server exists
-            server_exists = await check_server_existence(guild, server_id, db)
+            server_exists = await check_server_exists(db, guild.id, server_id)
             
             if not server_exists:
                 await interaction.followup.send(
@@ -573,7 +573,7 @@ class BountiesCog(commands.GroupCog, name="bounty"):
                 return
                 
             # Use the utility method to check if the server exists
-            server_exists = await check_server_existence(guild, server_id, db)
+            server_exists = await check_server_exists(db, guild.id, server_id)
             
             if not server_exists:
                 await interaction.followup.send(
@@ -649,7 +649,7 @@ class BountiesCog(commands.GroupCog, name="bounty"):
                 return
                 
             # Use the utility method to check if the server exists
-            server_exists = await check_server_existence(guild, server_id, db)
+            server_exists = await check_server_exists(db, guild.id, server_id)
             
             if not server_exists:
                 await interaction.followup.send(

@@ -16,7 +16,7 @@ import discord
 from utils.database import get_db
 from utils.async_utils import AsyncCache
 
-from models.player import Player
+# We'll handle Player reference inside methods to avoid circular import
 
 logger = logging.getLogger(__name__)
 
@@ -248,10 +248,13 @@ class Faction:
         result = await db.collections["factions"].insert_one(faction_data)
         faction_data["_id"] = result.inserted_id
         
-        # Clear player faction cache
-        player = await Player.get_by_player_id(server_id, owner_id)
-        if player:
-            await player.set_faction(str(result.inserted_id))
+        # Update player faction directly to avoid circular imports
+        db = await get_db()
+        await db.collections["players"].update_one(
+            {"server_id": server_id, "player_id": owner_id},
+            {"$set": {"faction_id": str(result.inserted_id), "updated_at": now}},
+            upsert=True
+        )
         
         return cls(faction_data)
     
@@ -370,10 +373,12 @@ class Faction:
             }
         )
         
-        # Update player faction
-        player = await Player.get_by_player_id(self.server_id, player_id)
-        if player:
-            await player.set_faction(self.id)
+        # Update player faction directly to avoid circular imports
+        await db.collections["players"].update_one(
+            {"server_id": self.server_id, "player_id": player_id},
+            {"$set": {"faction_id": self.id, "updated_at": now}},
+            upsert=True
+        )
         
         # Update local data
         self.updated_at = now
@@ -434,10 +439,12 @@ class Faction:
                 }
             )
         
-        # Update player faction
-        player = await Player.get_by_player_id(self.server_id, player_id)
-        if player:
-            await player.set_faction(None)
+        # Update player faction directly to avoid circular imports
+        await db.collections["players"].update_one(
+            {"server_id": self.server_id, "player_id": player_id},
+            {"$set": {"faction_id": None, "updated_at": now}},
+            upsert=True
+        )
         
         # Update local data
         self.updated_at = now
@@ -526,11 +533,14 @@ class Faction:
         """
         db = await get_db()
         
-        # Remove faction ID from all members
+        # Remove faction ID from all members (directly in database to avoid circular imports)
+        now = datetime.utcnow()
         for player_id in self.member_ids:
-            player = await Player.get_by_player_id(self.server_id, player_id)
-            if player:
-                await player.set_faction(None)
+            await db.collections["players"].update_one(
+                {"server_id": self.server_id, "player_id": player_id},
+                {"$set": {"faction_id": None, "updated_at": now}},
+                upsert=True
+            )
         
         # Delete faction
         result = await db.collections["factions"].delete_one({"_id": self._id})
@@ -542,39 +552,58 @@ class Faction:
         
         return result.deleted_count > 0
     
-    async def get_members(self) -> List[Player]:
+    async def get_members(self) -> List[dict]:
         """Get faction members
         
         Returns:
-            List[Player]: List of faction members
+            List[dict]: List of faction members as dictionaries
         """
+        db = await get_db()
         players = []
+        
+        # Fetch players directly from database to avoid circular imports
         for player_id in self.member_ids:
-            player = await Player.get_by_player_id(self.server_id, player_id)
-            if player:
-                players.append(player)
+            player_data = await db.collections["players"].find_one(
+                {"server_id": self.server_id, "player_id": player_id}
+            )
+            if player_data:
+                players.append(player_data)
+                
         return players
     
-    async def get_admins(self) -> List[Player]:
+    async def get_admins(self) -> List[dict]:
         """Get faction admins
         
         Returns:
-            List[Player]: List of faction admins
+            List[dict]: List of faction admins as dictionaries
         """
+        db = await get_db()
         players = []
+        
+        # Fetch players directly from database to avoid circular imports
         for player_id in self.admin_ids:
-            player = await Player.get_by_player_id(self.server_id, player_id)
-            if player:
-                players.append(player)
+            player_data = await db.collections["players"].find_one(
+                {"server_id": self.server_id, "player_id": player_id}
+            )
+            if player_data:
+                players.append(player_data)
+                
         return players
     
-    async def get_owner(self) -> Optional[Player]:
+    async def get_owner(self) -> Optional[dict]:
         """Get faction owner
         
         Returns:
-            Player or None: Faction owner
+            dict or None: Faction owner as dictionary
         """
-        return await Player.get_by_player_id(self.server_id, self.owner_id)
+        db = await get_db()
+        
+        # Fetch owner directly from database to avoid circular imports
+        owner_data = await db.collections["players"].find_one(
+            {"server_id": self.server_id, "player_id": self.owner_id}
+        )
+        
+        return owner_data
     
     async def get_stats(self) -> Dict[str, Any]:
         """Get faction statistics
@@ -586,21 +615,21 @@ class Faction:
         members = await self.get_members()
         
         # Aggregate stats
-        total_kills = sum(member.kills for member in members)
-        total_deaths = sum(member.deaths for member in members)
+        total_kills = sum(member.get("kills", 0) for member in members)
+        total_deaths = sum(member.get("deaths", 0) for member in members)
         
         # Calculate K/D ratio
         faction_kd = total_kills / total_deaths if total_deaths > 0 else total_kills
         
         # Get top members
-        top_members = sorted(members, key=lambda m: m.kills, reverse=True)[:5]
+        top_members = sorted(members, key=lambda m: m.get("kills", 0), reverse=True)[:5]
         top_members_data = [
             {
-                "id": member.player_id,
-                "name": member.player_name,
-                "kills": member.kills,
-                "deaths": member.deaths,
-                "kd_ratio": member.kd_ratio
+                "id": member.get("player_id", "unknown"),
+                "name": member.get("player_name", "Unknown"),
+                "kills": member.get("kills", 0),
+                "deaths": member.get("deaths", 0),
+                "kd_ratio": member.get("kd_ratio", 0)
             }
             for member in top_members
         ]
@@ -608,7 +637,7 @@ class Faction:
         # Weapons breakdown
         weapons = {}
         for member in members:
-            for weapon, count in member.weapons.items():
+            for weapon, count in member.get("weapons", {}).items():
                 weapons[weapon] = weapons.get(weapon, 0) + count
                 
         top_weapons = sorted(weapons.items(), key=lambda x: x[1], reverse=True)[:5]

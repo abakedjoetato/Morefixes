@@ -51,3 +51,4 @@ werkzeug
 asyncssh
 python-dotenv
 discord.py
+asyncssh
