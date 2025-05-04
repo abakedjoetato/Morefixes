@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tower of Temptation PvP Statistics Bot</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>Tower of Temptation PvP Statistics Bot</h1>
+            <nav>
+                <ul>
+                    <li><a href="{{ url_for('home') }}">Home</a></li>
+                    <li><a href="{{ url_for('stats') }}">Bot Stats</a></li>
+                    <li><a href="{{ url_for('leaderboards') }}">Leaderboards</a></li>
+                    <li><a href="{{ url_for('rivalries') }}">Rivalries</a></li>
+                    <li><a href="{{ url_for('admin') }}">Admin</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+    
+    <main class="container">
+        <section class="hero">
+            <h2>Track PvP Statistics with Precision</h2>
+            <p>The ultimate Discord bot for competitive gaming communities.</p>
+            <div class="cta-buttons">
+                <a href="https://discord.com/oauth2/authorize?client_id={{ client_id }}&scope=bot" class="button primary">Add to Discord</a>
+                <a href="{{ url_for('stats') }}" class="button secondary">View Statistics</a>
+            </div>
+        </section>
+        
+        <section class="features">
+            <h2>Key Features</h2>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h3>Real-time Kill Tracking</h3>
+                    <p>Monitor player kills, deaths, and performance metrics in real-time.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>Player Rivalries</h3>
+                    <p>Track nemesis and prey relationships between players.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>Bounty System</h3>
+                    <p>Place bounties on players and earn rewards for claiming them.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>Server Statistics</h3>
+                    <p>Detailed statistics for each game server and its players.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+    
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Tower of Temptation PvP Statistics Bot</p>
+        </div>
+    </footer>
+    
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
