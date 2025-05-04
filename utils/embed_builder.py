@@ -336,6 +336,145 @@ class EmbedBuilder:
             **kwargs
         )
     
+    # Add alias methods for compatibility
+    @classmethod
+    async def create_error_embed(cls, 
+                               title: Optional[str] = None, 
+                               description: Optional[str] = None,
+                               thumbnail: bool = False,
+                               guild: Optional[discord.Guild] = None,
+                               bot: Optional[discord.Client] = None,
+                               **kwargs) -> discord.Embed:
+        """Create an error-themed embed (alias for error_embed)
+        
+        Args:
+            title: Embed title (default: None)
+            description: Embed description (default: None)
+            thumbnail: Whether to show error icon as thumbnail (default: False)
+            guild: The Discord guild for customization (default: None)
+            bot: The Discord bot instance for customization (default: None)
+            **kwargs: Additional arguments for create_embed
+            
+        Returns:
+            discord.Embed: Error-themed embed
+        """
+        return await cls.error_embed(title, description, thumbnail, guild, bot, **kwargs)
+    
+    @classmethod
+    async def create_success_embed(cls, 
+                                 title: Optional[str] = None, 
+                                 description: Optional[str] = None,
+                                 thumbnail: bool = False,
+                                 guild: Optional[discord.Guild] = None,
+                                 bot: Optional[discord.Client] = None,
+                                 **kwargs) -> discord.Embed:
+        """Create a success-themed embed (alias for success_embed)
+        
+        Args:
+            title: Embed title (default: None)
+            description: Embed description (default: None)
+            thumbnail: Whether to show success icon as thumbnail (default: False)
+            guild: The Discord guild for customization (default: None)
+            bot: The Discord bot instance for customization (default: None)
+            **kwargs: Additional arguments for create_embed
+            
+        Returns:
+            discord.Embed: Success-themed embed
+        """
+        return await cls.success_embed(title, description, thumbnail, guild, bot, **kwargs)
+    
+    @classmethod
+    async def create_info_embed(cls, 
+                              title: Optional[str] = None, 
+                              description: Optional[str] = None,
+                              thumbnail: bool = False,
+                              guild: Optional[discord.Guild] = None,
+                              bot: Optional[discord.Client] = None,
+                              **kwargs) -> discord.Embed:
+        """Create an info-themed embed (alias for info_embed)
+        
+        Args:
+            title: Embed title (default: None)
+            description: Embed description (default: None)
+            thumbnail: Whether to show info icon as thumbnail (default: False)
+            guild: The Discord guild for customization (default: None)
+            bot: The Discord bot instance for customization (default: None)
+            **kwargs: Additional arguments for create_embed
+            
+        Returns:
+            discord.Embed: Info-themed embed
+        """
+        return await cls.info_embed(title, description, thumbnail, guild, bot, **kwargs)
+    
+    @classmethod
+    async def create_warning_embed(cls, 
+                                 title: Optional[str] = None, 
+                                 description: Optional[str] = None,
+                                 thumbnail: bool = False,
+                                 guild: Optional[discord.Guild] = None,
+                                 bot: Optional[discord.Client] = None,
+                                 **kwargs) -> discord.Embed:
+        """Create a warning-themed embed (alias for warning_embed)
+        
+        Args:
+            title: Embed title (default: None)
+            description: Embed description (default: None)
+            thumbnail: Whether to show warning icon as thumbnail (default: False)
+            guild: The Discord guild for customization (default: None)
+            bot: The Discord bot instance for customization (default: None)
+            **kwargs: Additional arguments for create_embed
+            
+        Returns:
+            discord.Embed: Warning-themed embed
+        """
+        return await cls.warning_embed(title, description, thumbnail, guild, bot, **kwargs)
+    
+    @classmethod
+    async def create_base_embed(cls, 
+                              title: Optional[str] = None, 
+                              description: Optional[str] = None,
+                              color: Optional[int] = None,
+                              thumbnail: bool = False,
+                              guild: Optional[discord.Guild] = None,
+                              bot: Optional[discord.Client] = None,
+                              **kwargs) -> discord.Embed:
+        """Create a base embed with standard styling (alias for create_embed)
+        
+        Args:
+            title: Embed title (default: None)
+            description: Embed description (default: None)
+            color: Embed color (default: None - uses primary color)
+            thumbnail: Whether to show neutral icon as thumbnail (default: False)
+            guild: The Discord guild for customization (default: None)
+            bot: The Discord bot instance for customization (default: None)
+            **kwargs: Additional arguments for create_embed
+            
+        Returns:
+            discord.Embed: Base embed with standard styling
+        """
+        # Set color if not provided
+        if color is None:
+            kwargs["color"] = cls.COLORS["primary"]
+        else:
+            kwargs["color"] = color
+            
+        # Add neutral icon as thumbnail if requested
+        if thumbnail and "thumbnail_url" not in kwargs:
+            kwargs["thumbnail_url"] = cls.ICONS["neutral"]
+            
+        # Add guild and bot to kwargs if not already present
+        if "guild" not in kwargs and guild is not None:
+            kwargs["guild"] = guild
+            
+        if "bot" not in kwargs and bot is not None:
+            kwargs["bot"] = bot
+            
+        return await cls.create_embed(
+            title=title,
+            description=description,
+            **kwargs
+        )
+    
     @classmethod
     async def player_stats_embed(cls, 
                                 player_name: str, 
@@ -514,13 +653,13 @@ class EmbedBuilder:
         )
     
     @classmethod
-    async def create_base_embed(cls, 
-                              title: str,
-                              description: str,
-                              color: Optional[int] = None,
-                              guild: Optional[discord.Guild] = None,
-                              bot: Optional[discord.Client] = None,
-                              **kwargs) -> discord.Embed:
+    async def create_standard_embed(cls, 
+                                  title: str,
+                                  description: str,
+                                  color: Optional[int] = None,
+                                  guild: Optional[discord.Guild] = None,
+                                  bot: Optional[discord.Client] = None,
+                                  **kwargs) -> discord.Embed:
         """Create a base embed with standard formatting
         
         Args:

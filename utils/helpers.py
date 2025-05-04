@@ -454,3 +454,33 @@ async def confirm(ctx, message: str = "Are you sure?", timeout: int = 60, delete
             pass
     
     return view.value is True
+
+def get_bot_name(bot, guild) -> str:
+    """Get the bot's display name in a guild
+    
+    Args:
+        bot: The Discord bot instance
+        guild: The Discord guild
+        
+    Returns:
+        The bot's display name (nickname or username)
+    """
+    if not bot or not guild:
+        return "ToT Stats"
+    
+    # Try to get the bot's member object in the guild
+    try:
+        bot_member = guild.get_member(bot.user.id)
+        if bot_member and bot_member.nick:
+            return bot_member.nick
+    except Exception as e:
+        logger.warning(f"Error getting bot nickname: {e}")
+    
+    # Fall back to the bot's username
+    try:
+        return bot.user.name
+    except Exception:
+        pass
+    
+    # Final fallback
+    return "ToT Stats"
