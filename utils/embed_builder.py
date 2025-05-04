@@ -701,6 +701,325 @@ class EmbedBuilder:
         )
         
     @classmethod
+    async def create_stats_embed(cls, 
+                               player_name: str,
+                               stats: Dict[str, Any],
+                               avatar_url: Optional[str] = None,
+                               guild: Optional[discord.Guild] = None,
+                               bot: Optional[discord.Client] = None,
+                               **kwargs) -> discord.Embed:
+        """Create a player stats embed (alias for player_stats_embed)
+        
+        Args:
+            player_name: Player name
+            stats: Player statistics dictionary
+            avatar_url: Player avatar URL (default: None)
+            guild: The Discord guild for customization (default: None)
+            bot: The Discord bot instance for customization (default: None)
+            **kwargs: Additional arguments for player_stats_embed
+            
+        Returns:
+            discord.Embed: Player statistics embed
+        """
+        # Get faction color if available
+        faction_color = None
+        if "faction" in stats and stats["faction"]:
+            faction_name = stats["faction"].lower()
+            if faction_name == "faction a":
+                faction_color = cls.COLORS["faction_a"]
+            elif faction_name == "faction b":
+                faction_color = cls.COLORS["faction_b"]
+        
+        return await cls.player_stats_embed(
+            player_name=player_name,
+            stats=stats,
+            avatar_url=avatar_url,
+            faction_color=faction_color,
+            guild=guild,
+            bot=bot
+        )
+    
+    @classmethod
+    async def create_server_stats_embed(cls, 
+                                      server_name: str,
+                                      stats: Dict[str, Any],
+                                      server_icon: Optional[str] = None,
+                                      color: Optional[int] = None,
+                                      guild: Optional[discord.Guild] = None,
+                                      bot: Optional[discord.Client] = None) -> discord.Embed:
+        """Create a server statistics embed
+        
+        Args:
+            server_name: Server name
+            stats: Server statistics dictionary
+            server_icon: Server icon URL (default: None)
+            color: Embed color (default: None)
+            guild: The Discord guild for customization (default: None)
+            bot: The Discord bot instance for customization (default: None)
+            
+        Returns:
+            discord.Embed: Server statistics embed
+        """
+        # Set color to default if not provided
+        color = color or cls.COLORS["primary"]
+        
+        # Format server stats
+        fields = []
+        
+        # Add key stats as fields
+        for key, value in stats.items():
+            # Format the key name nicely
+            key_name = key.replace("_", " ").title()
+            
+            # Format the value based on type
+            if isinstance(value, (int, float)):
+                if key.endswith("_ratio"):
+                    formatted_value = f"{value:.2f}"
+                else:
+                    formatted_value = f"{value:,}"
+            else:
+                formatted_value = str(value)
+            
+            fields.append({
+                "name": key_name,
+                "value": formatted_value,
+                "inline": True
+            })
+        
+        # Create embed
+        return await cls.create_embed(
+            title=f"{server_name} Statistics",
+            color=color,
+            fields=fields,
+            thumbnail_url=server_icon or cls.ICONS["stats"],
+            footer_text="Last updated",
+            timestamp=datetime.utcnow(),
+            guild=guild,
+            bot=bot
+        )
+    
+    @classmethod
+    async def create_progress_embed(cls,
+                                  title: str,
+                                  description: str,
+                                  progress: float,
+                                  color: Optional[int] = None,
+                                  guild: Optional[discord.Guild] = None,
+                                  bot: Optional[discord.Client] = None) -> discord.Embed:
+        """Create a progress bar embed
+        
+        Args:
+            title: Embed title
+            description: Embed description
+            progress: Progress value between 0 and 1
+            color: Embed color (default: None)
+            guild: The Discord guild for customization (default: None)
+            bot: The Discord bot instance for customization (default: None)
+            
+        Returns:
+            discord.Embed: Progress bar embed
+        """
+        # Ensure progress is between 0 and 1
+        progress = max(0, min(1, progress))
+        
+        # Choose color based on progress if not provided
+        if color is None:
+            if progress < 0.3:
+                color = cls.COLORS["error"]
+            elif progress < 0.7:
+                color = cls.COLORS["warning"]
+            else:
+                color = cls.COLORS["success"]
+        
+        # Create progress bar
+        bar_length = 20
+        filled_length = int(bar_length * progress)
+        bar = '█' * filled_length + '░' * (bar_length - filled_length)
+        
+        # Add percentage to the description
+        full_description = f"{description}\n\n**Progress:** {bar} {progress:.1%}"
+        
+        # Create embed
+        return await cls.create_embed(
+            title=title,
+            description=full_description,
+            color=color,
+            footer_text="Processing",
+            timestamp=datetime.utcnow(),
+            guild=guild,
+            bot=bot
+        )
+    
+    @classmethod
+    async def create_kill_embed(cls,
+                              killer_name: str,
+                              victim_name: str,
+                              weapon: str,
+                              distance: Optional[float] = None,
+                              killer_faction: Optional[str] = None,
+                              victim_faction: Optional[str] = None,
+                              timestamp: Optional[datetime] = None,
+                              guild: Optional[discord.Guild] = None,
+                              bot: Optional[discord.Client] = None) -> discord.Embed:
+        """Create a kill feed embed
+        
+        Args:
+            killer_name: Name of the killer
+            victim_name: Name of the victim
+            weapon: Weapon used for the kill
+            distance: Kill distance in meters (default: None)
+            killer_faction: Faction of the killer (default: None)
+            victim_faction: Faction of the victim (default: None)
+            timestamp: Time of the kill (default: None)
+            guild: The Discord guild for customization (default: None)
+            bot: The Discord bot instance for customization (default: None)
+            
+        Returns:
+            discord.Embed: Kill feed embed
+        """
+        # Determine color based on factions
+        if killer_faction and killer_faction.lower() == "faction a":
+            color = cls.COLORS["faction_a"]
+        elif killer_faction and killer_faction.lower() == "faction b":
+            color = cls.COLORS["faction_b"]
+        else:
+            color = cls.COLORS["primary"]
+        
+        # Create title with kill info
+        title = f"{killer_name} ⚔️ {victim_name}"
+        
+        # Create description with weapon and distance
+        description = f"**Weapon:** {weapon}"
+        if distance:
+            description += f"\n**Distance:** {distance:.1f}m"
+            
+        if killer_faction and victim_faction:
+            description += f"\n**Factions:** {killer_faction} vs {victim_faction}"
+        
+        # Create embed
+        return await cls.create_embed(
+            title=title,
+            description=description,
+            color=color,
+            thumbnail_url=cls.ICONS["skull"],
+            footer_text="Kill Feed",
+            timestamp=timestamp or datetime.utcnow(),
+            guild=guild,
+            bot=bot
+        )
+    
+    @classmethod
+    async def create_event_embed(cls,
+                               event_name: str,
+                               description: str,
+                               start_time: Optional[datetime] = None,
+                               end_time: Optional[datetime] = None,
+                               location: Optional[str] = None,
+                               rewards: Optional[str] = None,
+                               thumbnail_url: Optional[str] = None,
+                               guild: Optional[discord.Guild] = None,
+                               bot: Optional[discord.Client] = None) -> discord.Embed:
+        """Create an event announcement embed
+        
+        Args:
+            event_name: Name of the event
+            description: Event description
+            start_time: Event start time (default: None)
+            end_time: Event end time (default: None)
+            location: Event location (default: None)
+            rewards: Event rewards (default: None)
+            thumbnail_url: URL for event thumbnail (default: None)
+            guild: The Discord guild for customization (default: None)
+            bot: The Discord bot instance for customization (default: None)
+            
+        Returns:
+            discord.Embed: Event announcement embed
+        """
+        # Create fields for additional information
+        fields = []
+        
+        if start_time:
+            fields.append({
+                "name": "Start Time",
+                "value": start_time.strftime("%Y-%m-%d %H:%M:%S UTC"),
+                "inline": True
+            })
+            
+        if end_time:
+            fields.append({
+                "name": "End Time",
+                "value": end_time.strftime("%Y-%m-%d %H:%M:%S UTC"),
+                "inline": True
+            })
+            
+        if location:
+            fields.append({
+                "name": "Location",
+                "value": location,
+                "inline": True
+            })
+            
+        if rewards:
+            fields.append({
+                "name": "Rewards",
+                "value": rewards,
+                "inline": False
+            })
+        
+        # Create embed
+        return await cls.create_embed(
+            title=f"Event: {event_name}",
+            description=description,
+            color=cls.COLORS["gold"],
+            fields=fields,
+            thumbnail_url=thumbnail_url or cls.ICONS["trophy"],
+            footer_text="Tower of Temptation Events",
+            timestamp=datetime.utcnow(),
+            guild=guild,
+            bot=bot
+        )
+    
+    @classmethod
+    async def create_error_error_embed(cls, 
+                                     title: Optional[str] = None, 
+                                     description: Optional[str] = None,
+                                     guild: Optional[discord.Guild] = None,
+                                     bot: Optional[discord.Client] = None,
+                                     **kwargs) -> discord.Embed:
+        """Create a critical error embed (for errors during error handling)
+        
+        Args:
+            title: Embed title (default: "Critical Error")
+            description: Embed description (default: "An error occurred while handling an error")
+            guild: The Discord guild for customization (default: None)
+            bot: The Discord bot instance for customization (default: None)
+            **kwargs: Additional arguments for create_embed
+            
+        Returns:
+            discord.Embed: Critical error embed
+        """
+        # Use provided title or default
+        title = title or "Critical Error"
+        
+        # Use provided description or default
+        description = description or "An error occurred while handling an error"
+            
+        # Create a simple embed with minimal dependencies
+        embed = discord.Embed(
+            title=title,
+            description=description,
+            color=0xFF0000  # Bright red for critical errors
+        )
+        
+        # Set timestamp
+        embed.timestamp = datetime.utcnow()
+        
+        # Set footer
+        embed.set_footer(text="Critical System Error")
+            
+        return embed
+    
+    @classmethod
     async def help_embed(cls, 
                         title: str, 
                         description: str,

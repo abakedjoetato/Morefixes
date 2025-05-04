@@ -4,9 +4,6 @@ import os
 import sys
 from datetime import datetime
 
-import discord
-from discord.ext import commands
-
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -24,6 +21,7 @@ async def test_embeds():
     """Test all embed creation methods to ensure they work properly."""
     logger.info("Testing embed creation methods...")
     
+    # Test basic embed methods
     # Test create_error_embed
     try:
         error_embed = await EmbedBuilder.create_error_embed(
@@ -100,6 +98,87 @@ async def test_embeds():
         assert warning_embed.title == "Test Warning"
     except Exception as e:
         logger.error(f"Error testing create_warning_embed: {e}")
+        return False
+    
+    # Test specialized embed methods
+    # Test create_stats_embed
+    try:
+        stats_embed = await EmbedBuilder.create_stats_embed(
+            player_name="Test Player",
+            stats={"kills": 10, "deaths": 5, "kd_ratio": 2.0, "favorite_weapon": "Sword"}
+        )
+        logger.info("create_stats_embed works!")
+        assert "Test Player" in stats_embed.title
+    except Exception as e:
+        logger.error(f"Error testing create_stats_embed: {e}")
+        return False
+    
+    # Test create_server_stats_embed
+    try:
+        server_stats_embed = await EmbedBuilder.create_server_stats_embed(
+            server_name="Test Server",
+            stats={"players": 100, "kills": 1000, "average_kd": 1.5}
+        )
+        logger.info("create_server_stats_embed works!")
+        assert "Test Server" in server_stats_embed.title
+    except Exception as e:
+        logger.error(f"Error testing create_server_stats_embed: {e}")
+        return False
+    
+    # Test create_progress_embed
+    try:
+        progress_embed = await EmbedBuilder.create_progress_embed(
+            title="Test Progress",
+            description="Testing progress bar",
+            progress=0.75
+        )
+        logger.info("create_progress_embed works!")
+        assert "Test Progress" == progress_embed.title
+        assert "█" in progress_embed.description
+    except Exception as e:
+        logger.error(f"Error testing create_progress_embed: {e}")
+        return False
+    
+    # Test create_kill_embed
+    try:
+        kill_embed = await EmbedBuilder.create_kill_embed(
+            killer_name="Player1",
+            victim_name="Player2",
+            weapon="Sword",
+            distance=10.5
+        )
+        logger.info("create_kill_embed works!")
+        assert "Player1" in kill_embed.title
+        assert "Player2" in kill_embed.title
+    except Exception as e:
+        logger.error(f"Error testing create_kill_embed: {e}")
+        return False
+    
+    # Test create_event_embed
+    try:
+        event_embed = await EmbedBuilder.create_event_embed(
+            event_name="Test Event",
+            description="This is a test event",
+            start_time=datetime.utcnow(),
+            end_time=datetime.utcnow()
+        )
+        logger.info("create_event_embed works!")
+        assert "Test Event" in event_embed.title
+    except Exception as e:
+        logger.error(f"Error testing create_event_embed: {e}")
+        return False
+    
+    # Test create_error_error_embed
+    try:
+        error_error_embed = await EmbedBuilder.create_error_error_embed(
+            title="Critical Test Error",
+            description="This is a critical test error"
+        )
+        logger.info("create_error_error_embed works!")
+        assert "Critical Test Error" == error_error_embed.title
+        assert error_error_embed.color.value == 0xFF0000  # Bright red
+    except Exception as e:
+        logger.error(f"Error testing create_error_error_embed: {e}")
         return False
     
     logger.info("All embed tests passed successfully!")
