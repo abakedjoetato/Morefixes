@@ -14,8 +14,7 @@ from typing import Dict, List, Optional, Any, Union, TypeVar, Tuple
 from utils.database import get_db
 from utils.async_utils import AsyncCache
 
-# Local import to avoid circular references
-# from models.player import Player
+# Local imports are placed inside methods to avoid circular references
 
 logger = logging.getLogger(__name__)
 
@@ -210,7 +209,6 @@ class Rivalry:
     
     @classmethod
     async def get_for_player(cls, server_id: str, player_id: str) -> List['Rivalry']:
-        from models.player import Player
         """Get all rivalries for a player
         
         Args:
@@ -220,6 +218,7 @@ class Rivalry:
         Returns:
             List[Rivalry]: List of rivalries
         """
+        from models.player import Player
         db = await get_db()
         
         # Get rivalries where player is player1 or player2
@@ -329,8 +328,6 @@ class Rivalry:
         player2_id: str,
         declared_by: str
     ) -> Tuple['Rivalry', bool]:
-        # Import here to avoid circular imports
-        from models.player import Player
         """Declare a rivalry between two players
         
         Args:
@@ -342,6 +339,8 @@ class Rivalry:
         Returns:
             Tuple[Rivalry, bool]: Created or updated rivalry and whether it was newly created
         """
+        # Import here to avoid circular imports
+        from models.player import Player
         # Check if rivalry already exists
         existing = await cls.get_between_players(server_id, player1_id, player2_id)
         

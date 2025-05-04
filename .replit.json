@@ -1,17 +1,6 @@
 {
-  "run": "python main.py",
-  "modules": ["python-3.11"],
-  "nix": {
-    "channel": "stable-24_05"
-  },
-  "deployment": {
-    "deploymentTarget": "autoscale",
-    "run": ["python", "main.py"]
-  },
-  "workflows": {
-    "discord_bot": {
-      "name": "Discord Bot",
-      "run": "bash discord_bot_workflow.sh"
-    }
+  "commands": {
+    "run": "bash start.sh",
+    "discord_bot": "bash discord_bot_workflow.sh"
   }
 }

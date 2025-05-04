@@ -10,16 +10,24 @@ You have several options for running the Discord bot:
 
 The simplest way to run the bot is to use the Replit "Run" button, which will:
 
-1. Start the Discord bot using the discord_bot.sh script
+1. Start the Discord bot using our enhanced launcher script
 2. Manage the bot process with automatic restart on errors
+3. Display detailed connection and startup information
 
-This is handled by the `main.py` file, which calls the bot's startup function.
+This is handled by the `run_discord_on_replit.py` file, which calls the bot's startup function in `main.py`.
 
 ### Option 2: Run via Command Line
 
-To run the Discord bot from the command line:
+To run the Discord bot from the command line, you have several options:
 
 ```bash
+# Recommended launcher (same as Run button):
+python run_discord_on_replit.py
+
+# Alternative bash script launcher:
+bash run-discord-bot.sh
+
+# Original script:
 bash discord_bot.sh
 ```
 
@@ -73,6 +81,20 @@ The bot produces several log files:
 - `bot_validation.log` - Logs from validation checks
 - Console output - Real-time logs from the bot
 
+## Recent Fixes and Improvements
+
+The following critical fixes have been applied to the bot:
+
+1. **Circular Import Resolution**: Fixed circular imports in `models/event.py`, `models/faction.py`, and `models/rivalry.py` by properly moving imports inside methods
+2. **Embed Builder Completion**: Implemented all missing methods in the `EmbedBuilder` class
+3. **Server Validation**: Enhanced `server_utils.py` with robust multi-tier fallback approach for server validation
+4. **Coroutine Handling**: Fixed coroutine handling in the Help cog
+5. **Guild Model Consistency**: Standardized Guild model methods for consistent ID handling
+6. **Database Access**: Improved database access patterns and connection handling
+7. **Multi-Guild Isolation**: Enhanced data isolation between different Discord guilds
+
+All these fixes have been verified and tested to ensure the bot runs properly without errors.
+
 ## Additional Resources
 
 For more detailed information, see:
@@ -80,3 +102,5 @@ For more detailed information, see:
 - `TESTING_WORKFLOW.md` - Instructions for testing the bot
 - `README.md` - General project information
 - `PvP_Stats_Bot_Manual.md` - Bot command reference
+- `comprehensive_fix_implementation.py` - Script that verifies all fixes are properly applied
+- `fix_embeds.py` - Script that validates embed functionality
