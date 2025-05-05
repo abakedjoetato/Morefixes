@@ -16,10 +16,10 @@ logger = logging.getLogger(__name__)
 
 class Admin(commands.Cog):
     """Admin commands for bot management"""
-    
+
     def __init__(self, bot):
         self.bot = bot
-    
+
     @commands.hybrid_group(name="admin", description="Admin commands")
     @commands.guild_only()
     @commands.has_permissions(administrator=True)
@@ -27,7 +27,7 @@ class Admin(commands.Cog):
         """Admin command group"""
         if ctx.invoked_subcommand is None:
             await ctx.send("Please specify a subcommand.")
-    
+
     @admin.command(name="setrole", description="Set the admin role for server management")
     @app_commands.describe(role="The role to set as admin")
     async def setrole(self, ctx, role: discord.Role):
@@ -48,17 +48,17 @@ class Admin(commands.Cog):
                     name=ctx.guild.name
                 )
                 await self.bot.db.guilds.insert_one(guild.to_document())
-            
+
             # Set admin role
             await guild.set_admin_role(role.id)
-            
+
             # Send success message
             embed = EmbedBuilder.create_success_embed(
                 "Admin Role Set",
                 f"The {role.mention} role has been set as the admin role for server management."
             , guild=guild_model)
             await ctx.send(embed=embed)
-            
+
         except Exception as e:
             logger.error(f"Error setting admin role: {e}", exc_info=True)
             embed = EmbedBuilder.create_error_embed(
@@ -66,7 +66,7 @@ class Admin(commands.Cog):
                 f"An error occurred while setting the admin role: {e}"
             , guild=guild_model)
             await ctx.send(embed=embed)
-    
+
     @admin.command(name="premium", description="Set the premium tier for a guild")
     @app_commands.describe(
         guild_id="The ID of the guild to set premium for",
@@ -75,7 +75,7 @@ class Admin(commands.Cog):
     # Note: This command uses guild_id, not server_id, as it operates on guilds not servers
     async def premium(self, ctx, guild_id: str, tier: int):
         """Set the premium tier for a guild (Home Guild Admins only)"""
-        
+
         try:
             # Get guild model for themed embed
             guild_model = None
@@ -92,16 +92,17 @@ class Admin(commands.Cog):
                 , guild=guild_model)
                 await ctx.send(embed=embed, ephemeral=True)
                 return
-            
+
             # Validate tier
             if tier < 0 or tier > 4:
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Invalid Tier",
-                    "Premium tier must be between 0 and 4 (Scavenger, Survivor, Mercenary, Warlord, Overseer)."
-                , guild=guild_model)
+                    "Premium tier must be between 0 and 4 (Scavenger, Survivor, Mercenary, Warlord, Overseer).",
+                    guild=guild_model
+                )
                 await ctx.send(embed=embed)
                 return
-            
+
             # Get guild data
             target_guild = await Guild.get_by_guild_id(self.bot.db, guild_id)
             if not target_guild:
@@ -110,7 +111,7 @@ class Admin(commands.Cog):
                     # Try to get Discord guild object for name
                     bot_guild = self.bot.get_guild(int(guild_id))
                     guild_name = bot_guild.name if bot_guild else f"Guild {guild_id}"
-                    
+
                     # Create new guild
                     target_guild = Guild(
                         guild_id=guild_id,
@@ -125,24 +126,24 @@ class Admin(commands.Cog):
                     , guild=guild_model)
                     await ctx.send(embed=embed)
                     return
-            
+
             # Set premium tier
             await target_guild.set_premium_tier(self.bot.db, tier)
-            
+
             # Get guild name from bot
             try:
                 bot_guild = self.bot.get_guild(int(guild_id))
                 guild_name = bot_guild.name if bot_guild else target_guild.name or f"Guild {guild_id}"
             except:
                 guild_name = target_guild.name or f"Guild {guild_id}"
-            
+
             # Send success message
             embed = EmbedBuilder.create_success_embed(
                 "Premium Tier Set",
                 f"The premium tier for {guild_name} has been set to **Tier {tier}**."
             , guild=guild_model)
             await ctx.send(embed=embed)
-            
+
         except Exception as e:
             logger.error(f"Error setting premium tier: {e}", exc_info=True)
             embed = EmbedBuilder.create_error_embed(
@@ -150,11 +151,11 @@ class Admin(commands.Cog):
                 f"An error occurred while setting the premium tier: {e}"
             , guild=guild_model)
             await ctx.send(embed=embed)
-    
+
     @admin.command(name="status", description="View bot status information")
     async def status(self, ctx):
         """View bot status information"""
-        
+
         try:
             # Get guild model for themed embed
             guild_model = None
@@ -165,12 +166,12 @@ class Admin(commands.Cog):
 
             # Get basic statistics
             guild_count = len(self.bot.guilds)
-            
+
             # Count servers and players
             server_count = 0
             player_count = 0
             kill_count = 0
-            
+
             try:
                 # Use model count methods
                 server_count = await self.bot.db.game_servers.count_documents({})
@@ -178,19 +179,19 @@ class Admin(commands.Cog):
                 kill_count = await self.bot.db.kills.count_documents({})
             except Exception as e:
                 logger.warning(f"Error counting documents: {e}")
-            
+
             # Create embed
             embed = EmbedBuilder.create_base_embed(
                 "Bot Status",
                 "Current statistics and performance information"
             , guild=guild_model)
-            
+
             # Add statistics fields
             embed.add_field(name="Guilds", value=str(guild_count), inline=True)
             embed.add_field(name="Servers", value=str(server_count), inline=True)
             embed.add_field(name="Players", value=str(player_count), inline=True)
             embed.add_field(name="Kills Tracked", value=str(kill_count), inline=True)
-            
+
             # Add uptime if available
             import time
             if hasattr(self.bot, "start_time"):
@@ -202,14 +203,14 @@ class Admin(commands.Cog):
                     value=f"{int(hours)}h {int(minutes)}m {int(seconds)}s",
                     inline=True
                 )
-            
+
             # Add background tasks info
             task_count = len(self.bot.background_tasks) if hasattr(self.bot, "background_tasks") else 0
             embed.add_field(name="Background Tasks", value=str(task_count), inline=True)
-            
+
             # Send embed
             await ctx.send(embed=embed)
-            
+
         except Exception as e:
             logger.error(f"Error getting status: {e}", exc_info=True)
             embed = EmbedBuilder.create_error_embed(
@@ -217,18 +218,18 @@ class Admin(commands.Cog):
                 f"An error occurred while getting bot status: {e}"
             , guild=guild_model)
             await ctx.send(embed=embed)
-    
+
     @admin.command(name="sethomeguild", description="Set the home guild for the bot")
     async def sethomeguild(self, ctx):
         """Set the current guild as the home guild (Bot Owner only)"""
-        
+
         # First, defer the response to avoid timeouts
         if hasattr(ctx, 'interaction') and ctx.interaction:
             await ctx.interaction.response.defer(ephemeral=False)
             is_deferred = True
         else:
             is_deferred = False
-            
+
         try:
             # Get guild model for themed embed
             guild_data = None
@@ -246,62 +247,62 @@ class Admin(commands.Cog):
                     "Permission Denied",
                     "Only the bot owner can use this command."
                 , guild=guild_model)
-                
+
                 if is_deferred and hasattr(ctx.interaction, 'followup'):
                     await ctx.interaction.followup.send(embed=embed, ephemeral=True)
                 else:
                     await ctx.send(embed=embed, ephemeral=True)
                 return
-            
+
             # Set home guild
             self.bot.home_guild_id = ctx.guild.id
-            
+
             # Store in environment variable for current session
             os.environ["HOME_GUILD_ID"] = str(ctx.guild.id)
-            
+
             # Update the .env file for persistence across restarts
             try:
                 with open(".env", "r") as f:
                     lines = f.readlines()
-                
+
                 with open(".env", "w") as f:
                     for line in lines:
                         if line.startswith("HOME_GUILD_ID="):
                             f.write(f"HOME_GUILD_ID={str(ctx.guild.id)}\n")
                         else:
                             f.write(line)
-                            
+
                 logger.info(f"Updated .env file with new home guild ID: {ctx.guild.id}")
             except Exception as env_error:
                 logger.error(f"Failed to update .env file: {env_error}", exc_info=True)
-            
+
             # Send success message
             embed = EmbedBuilder.create_success_embed(
                 "Home Guild Set",
                 f"This guild ({ctx.guild.name}) has been set as the home guild for the bot."
             , guild=guild_model)
-            
+
             if is_deferred and hasattr(ctx.interaction, 'followup'):
                 await ctx.interaction.followup.send(embed=embed)
             else:
                 await ctx.send(embed=embed)
-                
+
             logger.info(f"Home guild set to {ctx.guild.name} (ID: {ctx.guild.id}) by owner")
-            
+
         except Exception as e:
             logger.error(f"Error setting home guild: {e}", exc_info=True)
             embed = EmbedBuilder.create_error_embed(
                 "Error",
                 f"An error occurred while setting the home guild: {e}"
             , guild=guild_model)
-            
+
             if is_deferred and hasattr(ctx.interaction, 'followup'):
                 await ctx.interaction.followup.send(embed=embed)
             else:
                 await ctx.send(embed=embed)
-            
 
-    
+
+
     @admin.command(name="help", description="Show help for admin commands")
     async def admin_help(self, ctx):
         """Show help for admin commands"""
@@ -314,37 +315,37 @@ class Admin(commands.Cog):
                 guild_model = Guild(self.bot.db, guild_data)
         except Exception as e:
             logger.warning(f"Error getting guild model: {e}")
-        
+
         embed = EmbedBuilder.create_base_embed(
             "Admin Commands Help",
             "List of available admin commands and their usage"
         , guild=guild_model)
-        
+
         # Add command descriptions
         embed.add_field(
             name="`/admin setrole <role>`",
             value="Set the admin role for server management",
             inline=False
         )
-        
+
         embed.add_field(
             name="`/admin premium <guild_id> <tier>`",
             value="Set the premium tier for a guild (Home Guild Admins only)",
             inline=False
         )
-        
+
         embed.add_field(
             name="`/admin sethomeguild`",
             value="Set the current guild as the home guild (Bot Owner only)",
             inline=False
         )
-        
+
         embed.add_field(
             name="`/admin status`",
             value="View bot status information",
             inline=False
         )
-        
+
         await ctx.send(embed=embed)
 
 async def setup(bot):
