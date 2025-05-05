@@ -107,27 +107,13 @@ class Admin(commands.Cog):
             # Get guild data
             target_guild = await Guild.get_by_guild_id(self.bot.db, guild_id)
             if not target_guild:
-                # Create the guild if it doesn't exist
-                try:
-                    # Try to get Discord guild object for name
-                    bot_guild = self.bot.get_guild(int(guild_id))
-                    guild_name = bot_guild.name if bot_guild else f"Guild {guild_id}"
-
-                    # Create new guild
-                    target_guild = Guild(
-                        guild_id=guild_id,
-                        name=guild_name
-                    )
-                    await self.bot.db.guilds.insert_one(target_guild.to_document())
-                except Exception as e:
-                    logger.error(f"Error creating guild: {e}", exc_info=True)
-                    embed = await EmbedBuilder.create_error_embed(
-                        "Guild Creation Failed",
-                        f"Could not create a guild with ID {guild_id}: {e}",
-                        guild=guild_model
-                    )
-                    await ctx.send(embed=embed)
-                    return
+                embed = await EmbedBuilder.create_error_embed(
+                    "Guild Not Found",
+                    f"Could not find a guild with ID {guild_id}.",
+                    guild=guild_model
+                )
+                await ctx.send(embed=embed)
+                return
 
             # Set premium tier
             await target_guild.set_premium_tier(self.bot.db, tier)
