@@ -1375,7 +1375,7 @@ class Setup(commands.Cog):
                     {"guild_id": str(ctx.guild.id)}
                 ]
             })
-            
+
             if not guild_data:
                 embed = await EmbedBuilder.create_error_embed(
                     "Guild Not Found",
@@ -1416,7 +1416,7 @@ class Setup(commands.Cog):
             # Get server using our standardized server lookup utility
             from utils.server_utils import get_server
             server_data = await get_server(self.bot.db, server_id, ctx.guild.id)
-            
+
             if server_data:
                 logger.info(f"Found server: {server_data.get('server_name')} ({server_data.get('server_id')})")
                 server = Server(self.bot.db, server_data)
@@ -1558,7 +1558,7 @@ class Setup(commands.Cog):
 
             # Create progress embed function for reuse
             async def update_progress(current_size, current_files, kills, lines_processed=0, estimated=None):
-                elapsed = (datetime.now() - start_time).total_seconds()
+                elapsed = (datetime.now() - starttime).total_seconds()
                 progress_pct = min(99.9, (current_size / max(1, total_file_size)) * 100) if total_file_size > 0 else 0
 
                 # Calculate rates and ETA

@@ -244,7 +244,7 @@ class Admin(commands.Cog):
 
             # Check if user is the bot owner
             if ctx.author.id != self.bot.owner_id:
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Permission Denied",
                     "Only the bot owner can use this command."
                 , guild=guild_model)
@@ -292,7 +292,7 @@ class Admin(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error setting home guild: {e}", exc_info=True)
-            embed = EmbedBuilder.create_error_embed(
+            embed = await EmbedBuilder.create_error_embed(
                 "Error",
                 f"An error occurred while setting the home guild: {e}"
             , guild=guild_model)
