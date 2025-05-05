@@ -123,8 +123,9 @@ class Admin(commands.Cog):
                     logger.error(f"Error creating guild: {e}", exc_info=True)
                     embed = await EmbedBuilder.create_error_embed(
                         "Guild Creation Failed",
-                        f"Could not create a guild with ID {guild_id}: {e}"
-                    , guild=guild_model)
+                        f"Could not create a guild with ID {guild_id}: {e}",
+                        guild=guild_model
+                    )
                     await ctx.send(embed=embed)
                     return
 

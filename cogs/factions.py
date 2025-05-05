@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 class FactionsCog(commands.Cog):
     """Commands for managing factions in Tower of Temptation"""
-    
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.ctx_menu = app_commands.ContextMenu(
@@ -34,23 +34,23 @@ class FactionsCog(commands.Cog):
             callback=self.context_view_faction,
         )
         self.bot.tree.add_command(self.ctx_menu)
-    
+
     async def cog_unload(self) -> None:
         self.bot.tree.remove_command(self.ctx_menu.name, type=self.ctx_menu.type)
-    
+
     async def get_player_id_for_server(self, interaction: discord.Interaction, server_id: str) -> Optional[str]:
         """Get player ID for a server based on Discord ID
-        
+
         Args:
             interaction: Discord interaction
             server_id: Server ID
-            
+
         Returns:
             str or None: Player ID if found
         """
         # Check if user has a player link
         from models.player_link import PlayerLink
-        
+
         player_link = await PlayerLink.get_by_discord_id(interaction.user.id)
         if not player_link:
             # No player link found, inform user
@@ -60,7 +60,7 @@ class FactionsCog(commands.Cog):
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
             return None
-        
+
         # Check if user has a player on this server
         player_id = player_link.get_player_id_for_server(server_id)
         if not player_id:
@@ -71,25 +71,25 @@ class FactionsCog(commands.Cog):
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
             return None
-        
+
         return player_id
-    
+
     async def context_view_faction(self, interaction: discord.Interaction, member: discord.Member) -> None:
         """Context menu command to view a user's faction
-        
+
         Args:
             interaction: Discord interaction
             member: Discord member
         """
         await interaction.response.defer(ephemeral=True)
-        
+
         # Get server ID from guild config
         # For now, hardcode a test server ID
         server_id = "test_server"
-        
+
         # Get user's player link
         from models.player_link import PlayerLink
-        
+
         player_link = await PlayerLink.get_by_discord_id(member.id)
         if not player_link:
             embed = EmbedBuilder.info(
@@ -98,7 +98,7 @@ class FactionsCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         # Get player ID for server
         player_id = player_link.get_player_id_for_server(server_id)
         if not player_id:
@@ -108,10 +108,10 @@ class FactionsCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         # Get player's factions
         factions = await Faction.get_for_player(server_id, player_id)
-        
+
         if not factions:
             embed = EmbedBuilder.info(
                 title="No Faction",
@@ -119,18 +119,18 @@ class FactionsCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         # Show faction info for the first faction
         faction = factions[0]
         faction_members = await faction.get_members()
-        
+
         # Find member's role
         member_role = "Member"
         for faction_member in faction_members:
             if faction_member.get("player_id") == player_id:
                 member_role = faction_member.get("role", "").title()
                 break
-        
+
         # Create embed
         embed = faction.get_discord_embed(interaction.guild)
         embed.add_field(
@@ -138,12 +138,12 @@ class FactionsCog(commands.Cog):
             value=member_role,
             inline=True
         )
-        
+
         await interaction.followup.send(embed=embed, ephemeral=True)
-    
+
     # Group command for factions
     faction_group = app_commands.Group(name="faction", description="Manage factions")
-    
+
     @faction_group.command(name="create")
     @app_commands.describe(
         server_id="The server ID (default: first available server)",
@@ -162,7 +162,7 @@ class FactionsCog(commands.Cog):
         color: Optional[str] = None
     ) -> None:
         """Create a new faction
-        
+
         Args:
             interaction: Discord interaction
             server_id: Server ID (optional)
@@ -172,17 +172,17 @@ class FactionsCog(commands.Cog):
             color: Faction color (optional)
         """
         await interaction.response.defer(ephemeral=True)
-        
+
         # Get server ID from guild config if not provided
         if not server_id:
             # For now, hardcode a test server ID
             server_id = "test_server"
-        
+
         # Get player ID for server
         player_id = await self.get_player_id_for_server(interaction, server_id)
         if not player_id:
             return
-        
+
         # Validate faction name and tag
         if not name or len(name) < 3 or len(name) > 32:
             embed = EmbedBuilder.error(
@@ -191,7 +191,7 @@ class FactionsCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         if not tag or len(tag) < 2 or len(tag) > 10:
             embed = EmbedBuilder.error(
                 title="Invalid Faction Tag",
@@ -199,7 +199,7 @@ class FactionsCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         # Parse color
         faction_color = None
         if color:
@@ -222,7 +222,7 @@ class FactionsCog(commands.Cog):
                 )
                 await interaction.followup.send(embed=embed, ephemeral=True)
                 return
-        
+
         # Check if player is already in a faction
         existing_factions = await Faction.get_for_player(server_id, player_id)
         if existing_factions:
@@ -232,7 +232,7 @@ class FactionsCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         # Create faction
         try:
             faction = await Faction.create(
@@ -243,13 +243,13 @@ class FactionsCog(commands.Cog):
                 description=description,
                 color=faction_color
             )
-            
+
             # Create success embed
             embed = EmbedBuilder.success(
                 title="Faction Created",
                 description=f"You have successfully created the faction **{name}** [{tag}]."
             )
-            
+
             # Add faction details
             if description:
                 embed.add_field(
@@ -257,22 +257,22 @@ class FactionsCog(commands.Cog):
                     value=description,
                     inline=False
                 )
-            
+
             embed.add_field(
                 name="Members",
                 value="1",
                 inline=True
             )
-            
+
             await interaction.followup.send(embed=embed, ephemeral=False)
-            
+
         except ValueError as e:
             embed = EmbedBuilder.error(
                 title="Error Creating Faction",
                 description=str(e)
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
-    
+
     @faction_group.command(name="info")
     @app_commands.describe(
         server_id="The server ID (default: first available server)",
@@ -285,19 +285,19 @@ class FactionsCog(commands.Cog):
         name: str = None
     ) -> None:
         """Get information about a faction
-        
+
         Args:
             interaction: Discord interaction
             server_id: Server ID (optional)
             name: Faction name or tag
         """
         await interaction.response.defer()
-        
+
         # Get server ID from guild config if not provided
         if not server_id:
             # For now, hardcode a test server ID
             server_id = "test_server"
-        
+
         # Get faction by name or tag
         if not name:
             embed = EmbedBuilder.error(
@@ -306,12 +306,12 @@ class FactionsCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         # Try to find faction by name or tag
         faction = await Faction.get_by_name(server_id, name)
         if not faction:
             faction = await Faction.get_by_tag(server_id, name)
-            
+
         if not faction:
             embed = EmbedBuilder.error(
                 title="Faction Not Found",
@@ -319,44 +319,44 @@ class FactionsCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         # Get faction members
         faction_members = await faction.get_members()
-        
+
         # Create embed
         embed = faction.get_discord_embed(interaction.guild)
-        
+
         # Add leader info
         leader_name = "Unknown"
         for member in faction_members:
             if member.get("role") == "leader":
                 leader_name = member.get("player_name", "Unknown")
                 break
-        
+
         embed.add_field(
             name="Leader",
             value=leader_name,
             inline=True
         )
-        
+
         # Add member breakdown
         role_counts = {"leader": 0, "officer": 0, "member": 0}
         for member in faction_members:
             role = member.get("role", "member")
             role_counts[role] = role_counts.get(role, 0) + 1
-        
+
         member_breakdown = f"👑 Leader: {role_counts['leader']}\n"
         member_breakdown += f"🛡️ Officers: {role_counts['officer']}\n"
         member_breakdown += f"👥 Members: {role_counts['member']}"
-        
+
         embed.add_field(
             name="Membership",
             value=member_breakdown,
             inline=True
         )
-        
+
         await interaction.followup.send(embed=embed)
-    
+
     @faction_group.command(name="list")
     @app_commands.describe(
         server_id="The server ID (default: first available server)"
@@ -367,21 +367,21 @@ class FactionsCog(commands.Cog):
         server_id: Optional[str] = None
     ) -> None:
         """List all factions on a server
-        
+
         Args:
             interaction: Discord interaction
             server_id: Server ID (optional)
         """
         await interaction.response.defer()
-        
+
         # Get server ID from guild config if not provided
         if not server_id:
             # For now, hardcode a test server ID
             server_id = "test_server"
-        
+
         # Get all factions
         factions = await Faction.get_all(server_id)
-        
+
         if not factions:
             embed = EmbedBuilder.info(
                 title="No Factions",
@@ -389,16 +389,16 @@ class FactionsCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed)
             return
-        
+
         # Create list of faction embeds
         embeds = []
         for faction in factions:
             embed = faction.get_discord_embed(interaction.guild)
             embeds.append(embed)
-        
+
         # Send paginated embeds
         await paginate_embeds(interaction, embeds)
-    
+
     @faction_group.command(name="join")
     @app_commands.describe(
         server_id="The server ID (default: first available server)",
@@ -411,24 +411,24 @@ class FactionsCog(commands.Cog):
         name: str = None
     ) -> None:
         """Join a faction
-        
+
         Args:
             interaction: Discord interaction
             server_id: Server ID (optional)
             name: Faction name or tag
         """
         await interaction.response.defer(ephemeral=True)
-        
+
         # Get server ID from guild config if not provided
         if not server_id:
             # For now, hardcode a test server ID
             server_id = "test_server"
-        
+
         # Get player ID for server
         player_id = await self.get_player_id_for_server(interaction, server_id)
         if not player_id:
             return
-        
+
         # Get faction by name or tag
         if not name:
             embed = EmbedBuilder.error(
@@ -437,12 +437,12 @@ class FactionsCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         # Try to find faction by name or tag
         faction = await Faction.get_by_name(server_id, name)
         if not faction:
             faction = await Faction.get_by_tag(server_id, name)
-            
+
         if not faction:
             embed = EmbedBuilder.error(
                 title="Faction Not Found",
@@ -450,7 +450,7 @@ class FactionsCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         # Check if player is already in a faction
         existing_factions = await Faction.get_for_player(server_id, player_id)
         if existing_factions:
@@ -460,7 +460,7 @@ class FactionsCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         # Check if faction requires approval
         if faction.require_approval:
             embed = EmbedBuilder.warning(
@@ -469,7 +469,7 @@ class FactionsCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         # Check if faction is full
         if faction.member_count >= 100:
             embed = EmbedBuilder.error(
@@ -478,26 +478,26 @@ class FactionsCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         # Join faction
         try:
             await faction.add_member(player_id)
-            
+
             # Create success embed
             embed = EmbedBuilder.success(
                 title="Faction Joined",
                 description=f"You have successfully joined **{faction.name}** [{faction.tag}]."
             )
-            
+
             await interaction.followup.send(embed=embed)
-            
+
         except ValueError as e:
             embed = EmbedBuilder.error(
                 title="Error Joining Faction",
                 description=str(e)
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
-    
+
     @faction_group.command(name="leave")
     @app_commands.describe(
         server_id="The server ID (default: first available server)"
@@ -508,26 +508,26 @@ class FactionsCog(commands.Cog):
         server_id: Optional[str] = None
     ) -> None:
         """Leave your current faction
-        
+
         Args:
             interaction: Discord interaction
             server_id: Server ID (optional)
         """
         await interaction.response.defer(ephemeral=True)
-        
+
         # Get server ID from guild config if not provided
         if not server_id:
             # For now, hardcode a test server ID
             server_id = "test_server"
-        
+
         # Get player ID for server
         player_id = await self.get_player_id_for_server(interaction, server_id)
         if not player_id:
             return
-        
+
         # Get player's factions
         factions = await Faction.get_for_player(server_id, player_id)
-        
+
         if not factions:
             embed = EmbedBuilder.error(
                 title="No Faction",
@@ -535,10 +535,10 @@ class FactionsCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         # Get the first faction
         faction = factions[0]
-        
+
         # Check if player is the faction leader
         if faction.leader_id == player_id:
             embed = EmbedBuilder.error(
@@ -547,14 +547,14 @@ class FactionsCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         # Ask for confirmation
         confirmed = await confirm(
             interaction,
             f"Are you sure you want to leave **{faction.name}** [{faction.tag}]?",
             ephemeral=True
         )
-        
+
         if not confirmed:
             embed = EmbedBuilder.info(
                 title="Action Cancelled",
@@ -562,26 +562,26 @@ class FactionsCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         # Leave faction
         try:
             await faction.remove_member(player_id)
-            
+
             # Create success embed
             embed = EmbedBuilder.success(
                 title="Faction Left",
                 description=f"You have successfully left **{faction.name}** [{faction.tag}]."
             )
-            
+
             await interaction.followup.send(embed=embed)
-            
+
         except ValueError as e:
             embed = EmbedBuilder.error(
                 title="Error Leaving Faction",
                 description=str(e)
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
-    
+
     @faction_group.command(name="add")
     @app_commands.describe(
         server_id="The server ID (default: first available server)",
@@ -597,7 +597,7 @@ class FactionsCog(commands.Cog):
         player_name: str = None
     ) -> None:
         """Add a player to a faction (Admin only)
-        
+
         Args:
             interaction: Discord interaction
             server_id: Server ID (optional)
@@ -605,7 +605,7 @@ class FactionsCog(commands.Cog):
             player_name: Player name
         """
         await interaction.response.defer(ephemeral=True)
-        
+
         # Check admin permissions
         if not has_admin_permission(interaction):
             embed = EmbedBuilder.error(
@@ -614,12 +614,12 @@ class FactionsCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         # Get server ID from guild config if not provided
         if not server_id:
             # For now, hardcode a test server ID
             server_id = "test_server"
-        
+
         # Get faction by name or tag
         if not faction_name:
             embed = EmbedBuilder.error(
@@ -628,12 +628,12 @@ class FactionsCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         # Try to find faction by name or tag
         faction = await Faction.get_by_name(server_id, faction_name)
         if not faction:
             faction = await Faction.get_by_tag(server_id, faction_name)
-            
+
         if not faction:
             embed = EmbedBuilder.error(
                 title="Faction Not Found",
@@ -641,7 +641,7 @@ class FactionsCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         # Validate player name
         if not player_name:
             embed = EmbedBuilder.error(
@@ -650,31 +650,31 @@ class FactionsCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         # Get player ID
         # This would normally involve a database lookup
         # For now, assume player_name is the player ID
         player_id = player_name
-        
+
         # Add player to faction
         try:
             await faction.add_member(player_id)
-            
+
             # Create success embed
             embed = EmbedBuilder.success(
                 title="Player Added",
                 description=f"Successfully added **{player_name}** to **{faction.name}** [{faction.tag}]."
             )
-            
+
             await interaction.followup.send(embed=embed)
-            
+
         except ValueError as e:
             embed = EmbedBuilder.error(
                 title="Error Adding Player",
                 description=str(e)
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
-    
+
     @faction_group.command(name="remove")
     @app_commands.describe(
         server_id="The server ID (default: first available server)",
@@ -690,7 +690,7 @@ class FactionsCog(commands.Cog):
         player_name: str = None
     ) -> None:
         """Remove a player from a faction (Admin only)
-        
+
         Args:
             interaction: Discord interaction
             server_id: Server ID (optional)
@@ -698,7 +698,7 @@ class FactionsCog(commands.Cog):
             player_name: Player name
         """
         await interaction.response.defer(ephemeral=True)
-        
+
         # Check admin permissions
         if not has_admin_permission(interaction):
             embed = EmbedBuilder.error(
@@ -707,12 +707,12 @@ class FactionsCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         # Get server ID from guild config if not provided
         if not server_id:
             # For now, hardcode a test server ID
             server_id = "test_server"
-        
+
         # Get faction by name or tag
         if not faction_name:
             embed = EmbedBuilder.error(
@@ -721,12 +721,12 @@ class FactionsCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         # Try to find faction by name or tag
         faction = await Faction.get_by_name(server_id, faction_name)
         if not faction:
             faction = await Faction.get_by_tag(server_id, faction_name)
-            
+
         if not faction:
             embed = EmbedBuilder.error(
                 title="Faction Not Found",
@@ -734,7 +734,7 @@ class FactionsCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         # Validate player name
         if not player_name:
             embed = EmbedBuilder.error(
@@ -743,12 +743,12 @@ class FactionsCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         # Get player ID
         # This would normally involve a database lookup
         # For now, assume player_name is the player ID
         player_id = player_name
-        
+
         # Check if player is the faction leader
         if faction.leader_id == player_id:
             embed = EmbedBuilder.error(
@@ -757,26 +757,26 @@ class FactionsCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         # Remove player from faction
         try:
             await faction.remove_member(player_id)
-            
+
             # Create success embed
             embed = EmbedBuilder.success(
                 title="Player Removed",
                 description=f"Successfully removed **{player_name}** from **{faction.name}** [{faction.tag}]."
             )
-            
+
             await interaction.followup.send(embed=embed)
-            
+
         except ValueError as e:
             embed = EmbedBuilder.error(
                 title="Error Removing Player",
                 description=str(e)
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
-    
+
     @faction_group.command(name="promote")
     @app_commands.describe(
         server_id="The server ID (default: first available server)",
@@ -793,7 +793,7 @@ class FactionsCog(commands.Cog):
         role: Literal["member", "officer", "leader"] = "officer"
     ) -> None:
         """Promote a player in your faction
-        
+
         Args:
             interaction: Discord interaction
             server_id: Server ID (optional)
@@ -802,17 +802,17 @@ class FactionsCog(commands.Cog):
             role: Role to promote to
         """
         await interaction.response.defer(ephemeral=True)
-        
+
         # Get server ID from guild config if not provided
         if not server_id:
             # For now, hardcode a test server ID
             server_id = "test_server"
-        
+
         # Get player ID for server
         player_id = await self.get_player_id_for_server(interaction, server_id)
         if not player_id:
             return
-        
+
         # Get faction by name or tag
         if not faction_name:
             # Try to get player's faction
@@ -824,14 +824,14 @@ class FactionsCog(commands.Cog):
                 )
                 await interaction.followup.send(embed=embed, ephemeral=True)
                 return
-            
+
             faction = factions[0]
         else:
             # Try to find faction by name or tag
             faction = await Faction.get_by_name(server_id, faction_name)
             if not faction:
                 faction = await Faction.get_by_tag(server_id, faction_name)
-                
+
             if not faction:
                 embed = EmbedBuilder.error(
                     title="Faction Not Found",
@@ -839,7 +839,7 @@ class FactionsCog(commands.Cog):
                 )
                 await interaction.followup.send(embed=embed, ephemeral=True)
                 return
-        
+
         # Check if player is the faction leader
         if faction.leader_id != player_id and not has_admin_permission(interaction):
             embed = EmbedBuilder.error(
@@ -848,7 +848,7 @@ class FactionsCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         # Validate player name
         if not player_name:
             embed = EmbedBuilder.error(
@@ -857,12 +857,12 @@ class FactionsCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         # Get player ID
         # This would normally involve a database lookup
         # For now, assume player_name is the player ID
         target_player_id = player_name
-        
+
         # Check if target player is in the faction
         faction_members = await faction.get_members()
         target_in_faction = False
@@ -870,7 +870,7 @@ class FactionsCog(commands.Cog):
             if member.get("player_id") == target_player_id:
                 target_in_faction = True
                 break
-        
+
         if not target_in_faction:
             embed = EmbedBuilder.error(
                 title="Player Not in Faction",
@@ -878,7 +878,7 @@ class FactionsCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         # Validate role
         if role not in FACTION_ROLES:
             embed = EmbedBuilder.error(
@@ -887,7 +887,7 @@ class FactionsCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         # If promoting to leader, ensure confirmation
         if role == "leader":
             confirmed = await confirm(
@@ -895,7 +895,7 @@ class FactionsCog(commands.Cog):
                 f"Are you sure you want to transfer leadership of **{faction.name}** to **{player_name}**? You will be demoted to officer.",
                 ephemeral=True
             )
-            
+
             if not confirmed:
                 embed = EmbedBuilder.info(
                     title="Action Cancelled",
@@ -903,27 +903,27 @@ class FactionsCog(commands.Cog):
                 )
                 await interaction.followup.send(embed=embed, ephemeral=True)
                 return
-        
+
         # Update member role
         try:
             await faction.update_member_role(target_player_id, role)
-            
+
             # Create success embed
             action = "Transferred leadership to" if role == "leader" else f"Promoted to {role}"
             embed = EmbedBuilder.success(
                 title="Member Promoted",
                 description=f"Successfully {action} **{player_name}** in **{faction.name}** [{faction.tag}]."
             )
-            
+
             await interaction.followup.send(embed=embed)
-            
+
         except ValueError as e:
             embed = EmbedBuilder.error(
                 title="Error Promoting Member",
                 description=str(e)
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
-    
+
     @faction_group.command(name="edit")
     @app_commands.describe(
         server_id="The server ID (default: first available server)",
@@ -944,7 +944,7 @@ class FactionsCog(commands.Cog):
         color: Optional[str] = None
     ) -> None:
         """Edit faction details
-        
+
         Args:
             interaction: Discord interaction
             server_id: Server ID (optional)
@@ -955,17 +955,17 @@ class FactionsCog(commands.Cog):
             color: New faction color (optional)
         """
         await interaction.response.defer(ephemeral=True)
-        
+
         # Get server ID from guild config if not provided
         if not server_id:
             # For now, hardcode a test server ID
             server_id = "test_server"
-        
+
         # Get player ID for server
         player_id = await self.get_player_id_for_server(interaction, server_id)
         if not player_id:
             return
-        
+
         # Get faction by name or tag
         if not faction_name:
             # Try to get player's faction
@@ -977,14 +977,14 @@ class FactionsCog(commands.Cog):
                 )
                 await interaction.followup.send(embed=embed, ephemeral=True)
                 return
-            
+
             faction = factions[0]
         else:
             # Try to find faction by name or tag
             faction = await Faction.get_by_name(server_id, faction_name)
             if not faction:
                 faction = await Faction.get_by_tag(server_id, faction_name)
-                
+
             if not faction:
                 embed = EmbedBuilder.error(
                     title="Faction Not Found",
@@ -992,7 +992,7 @@ class FactionsCog(commands.Cog):
                 )
                 await interaction.followup.send(embed=embed, ephemeral=True)
                 return
-        
+
         # Check if player is the faction leader
         if faction.leader_id != player_id and not has_admin_permission(interaction):
             embed = EmbedBuilder.error(
@@ -1001,7 +1001,7 @@ class FactionsCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         # Validate new name and tag
         if new_name and (len(new_name) < 3 or len(new_name) > 32):
             embed = EmbedBuilder.error(
@@ -1010,7 +1010,7 @@ class FactionsCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         if new_tag and (len(new_tag) < 2 or len(new_tag) > 10):
             embed = EmbedBuilder.error(
                 title="Invalid Faction Tag",
@@ -1018,7 +1018,7 @@ class FactionsCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         # Parse color
         faction_color = None
         if color:
@@ -1041,7 +1041,7 @@ class FactionsCog(commands.Cog):
                 )
                 await interaction.followup.send(embed=embed, ephemeral=True)
                 return
-        
+
         # Prepare update data
         update_data = {}
         if new_name:
@@ -1052,7 +1052,7 @@ class FactionsCog(commands.Cog):
             update_data["description"] = description
         if faction_color is not None:
             update_data["color"] = faction_color
-        
+
         if not update_data:
             embed = EmbedBuilder.error(
                 title="No Changes",
@@ -1060,17 +1060,17 @@ class FactionsCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         # Update faction
         try:
             await faction.update(update_data)
-            
+
             # Create success embed
             embed = EmbedBuilder.success(
                 title="Faction Updated",
                 description=f"Successfully updated **{faction.name}** [{faction.tag}]."
             )
-            
+
             # Add update details
             for key, value in update_data.items():
                 if key == "color":
@@ -1085,16 +1085,16 @@ class FactionsCog(commands.Cog):
                         value=str(value),
                         inline=True
                     )
-            
+
             await interaction.followup.send(embed=embed)
-            
+
         except ValueError as e:
             embed = EmbedBuilder.error(
                 title="Error Updating Faction",
                 description=str(e)
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
-    
+
     @faction_group.command(name="stats")
     @app_commands.describe(
         server_id="The server ID (default: first available server)",
@@ -1107,25 +1107,25 @@ class FactionsCog(commands.Cog):
         faction_name: Optional[str] = None
     ) -> None:
         """View faction statistics
-        
+
         Args:
             interaction: Discord interaction
             server_id: Server ID (optional)
             faction_name: Faction name or tag (optional - defaults to your faction)
         """
         await interaction.response.defer()
-        
+
         # Get server ID from guild config if not provided
         if not server_id:
             # For now, hardcode a test server ID
             server_id = "test_server"
-        
+
         # Get faction by name or tag if provided
         if faction_name:
             faction = await Faction.get_by_name(server_id, faction_name)
             if not faction:
                 faction = await Faction.get_by_tag(server_id, faction_name)
-                
+
             if not faction:
                 embed = EmbedBuilder.error(
                     title="Faction Not Found",
@@ -1138,7 +1138,7 @@ class FactionsCog(commands.Cog):
             player_id = await self.get_player_id_for_server(interaction, server_id)
             if not player_id:
                 return
-                
+
             factions = await Faction.get_for_player(server_id, player_id)
             if not factions:
                 embed = EmbedBuilder.error(
@@ -1147,13 +1147,13 @@ class FactionsCog(commands.Cog):
                 )
                 await interaction.followup.send(embed=embed, ephemeral=True)
                 return
-            
+
             faction = factions[0]
-        
+
         # Get faction stats
         # Just use the stats from the faction object for now
         stats = faction.stats
-        
+
         # Create stats embed
         embed = EmbedBuilder.faction(
             faction_name=faction.name,
@@ -1165,7 +1165,7 @@ class FactionsCog(commands.Cog):
             member_count=faction.member_count,
             stats=stats
         )
-        
+
         # Add KD ratio
         kills = stats.get("kills", 0)
         deaths = stats.get("deaths", 0)
@@ -1176,9 +1176,9 @@ class FactionsCog(commands.Cog):
                 value=f"{kd_ratio:.2f}",
                 inline=True
             )
-        
+
         await interaction.followup.send(embed=embed)
-    
+
     @faction_group.command(name="delete")
     @app_commands.describe(
         server_id="The server ID (default: first available server)",
@@ -1191,24 +1191,24 @@ class FactionsCog(commands.Cog):
         faction_name: str = None
     ) -> None:
         """Delete a faction (Admin or faction leader only)
-        
+
         Args:
             interaction: Discord interaction
             server_id: Server ID (optional)
             faction_name: Faction name or tag
         """
         await interaction.response.defer(ephemeral=True)
-        
+
         # Get server ID from guild config if not provided
         if not server_id:
             # For now, hardcode a test server ID
             server_id = "test_server"
-        
+
         # Get player ID for server
         player_id = await self.get_player_id_for_server(interaction, server_id)
         if not player_id:
             return
-        
+
         # Get faction by name or tag
         if not faction_name:
             # Try to get player's faction
@@ -1220,14 +1220,14 @@ class FactionsCog(commands.Cog):
                 )
                 await interaction.followup.send(embed=embed, ephemeral=True)
                 return
-            
+
             faction = factions[0]
         else:
             # Try to find faction by name or tag
             faction = await Faction.get_by_name(server_id, faction_name)
             if not faction:
                 faction = await Faction.get_by_tag(server_id, faction_name)
-                
+
             if not faction:
                 embed = EmbedBuilder.error(
                     title="Faction Not Found",
@@ -1235,11 +1235,11 @@ class FactionsCog(commands.Cog):
                 )
                 await interaction.followup.send(embed=embed, ephemeral=True)
                 return
-        
+
         # Check if player is the faction leader or admin
         is_leader = faction.leader_id == player_id
         is_admin = has_admin_permission(interaction)
-        
+
         if not is_leader and not is_admin:
             embed = EmbedBuilder.error(
                 title="Permission Denied",
@@ -1247,14 +1247,14 @@ class FactionsCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         # Ask for confirmation
         confirmed = await confirm(
             interaction,
             f"⚠️ **WARNING** ⚠️\n\nAre you sure you want to delete **{faction.name}** [{faction.tag}]?\n\nThis action is **PERMANENT** and cannot be undone. All members will be removed from the faction.",
             ephemeral=True
         )
-        
+
         if not confirmed:
             embed = EmbedBuilder.info(
                 title="Action Cancelled",
@@ -1262,25 +1262,117 @@ class FactionsCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         # Delete faction
         try:
             await faction.delete()
-            
+
             # Create success embed
             embed = EmbedBuilder.success(
                 title="Faction Deleted",
                 description=f"Successfully deleted **{faction.name}** [{faction.tag}]."
             )
-            
+
             await interaction.followup.send(embed=embed)
-            
+
         except ValueError as e:
             embed = EmbedBuilder.error(
                 title="Error Deleting Faction",
                 description=str(e)
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
+
+    @faction_group.command(name="set_require_approval")
+    @app_commands.describe(
+        server_id="The server ID (default: first available server)",
+        faction_name="The faction name or tag",
+        require_approval="Whether the faction requires approval to join (true/false)"
+    )
+    async def _faction_set_require_approval(
+        self,
+        interaction: discord.Interaction,
+        server_id: Optional[str] = None,
+        faction_name: str = None,
+        require_approval: bool = False
+    ) -> None:
+        """Set whether the faction requires approval to join (Admin or faction leader only)
+
+        Args:
+            interaction: Discord interaction
+            server_id: Server ID (optional)
+            faction_name: Faction name or tag
+            require_approval: Whether the faction requires approval to join
+        """
+        await interaction.response.defer(ephemeral=True)
+
+        # Get server ID from guild config if not provided
+        if not server_id:
+            # For now, hardcode a test server ID
+            server_id = "test_server"
+
+        # Get player ID for server
+        player_id = await self.get_player_id_for_server(interaction, server_id)
+        if not player_id:
+            return
+
+        # Get faction by name or tag
+        if not faction_name:
+            # Try to get player's faction
+            factions = await Faction.get_for_player(server_id, player_id)
+            if not factions:
+                embed = EmbedBuilder.error(
+                    title="No Faction",
+                    description="You are not a member of any faction."
+                )
+                await interaction.followup.send(embed=embed, ephemeral=True)
+                return
+
+            faction = factions[0]
+        else:
+            # Try to find faction by name or tag
+            faction = await Faction.get_by_name(server_id, faction_name)
+            if not faction:
+                faction = await Faction.get_by_tag(server_id, faction_name)
+
+            if not faction:
+                embed = EmbedBuilder.error(
+                    title="Faction Not Found",
+                    description=f"No faction found with name or tag '{faction_name}'."
+                )
+                await interaction.followup.send(embed=embed, ephemeral=True)
+                return
+
+        # Check if player is the faction leader or admin
+        is_leader = faction.leader_id == player_id
+        is_admin = has_admin_permission(interaction)
+
+        if not is_leader and not is_admin:
+            embed = EmbedBuilder.error(
+                title="Permission Denied",
+                description="Only the faction leader or server administrators can set faction approval requirements."
+            )
+            await interaction.followup.send(embed=embed, ephemeral=True)
+            return
+
+        # Update faction require_approval
+        try:
+            await faction.update({"require_approval": require_approval})
+
+            # Create success embed
+            embed = EmbedBuilder.success(
+                title="Faction Updated",
+                description=f"Successfully updated approval requirements for **{faction.name}** [{faction.tag}].  Require Approval: {require_approval}"
+            )
+
+            await interaction.followup.send(embed=embed)
+
+        except ValueError as e:
+            embed = EmbedBuilder.error(
+                title="Error Updating Faction",
+                description=str(e)
+            )
+            await interaction.followup.send(embed=embed, ephemeral=True)
+
 
 async def setup(bot: commands.Bot) -> None:
     """Set up the factions cog"""

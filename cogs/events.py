@@ -183,20 +183,22 @@ class Events(commands.Cog):
             # Get guild data
             guild_data = await self.bot.db.guilds.find_one({"guild_id": ctx.guild.id})
             if not guild_data:
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Error",
-                    "This guild is not set up. Please use the setup commands first."
-                , guild=guild_model)
+                    "This guild is not set up. Please use the setup commands first.",
+                    guild=guild_model
+                )
                 await ctx.send(embed=embed)
                 return
 
             # Check if the guild has access to events feature
             guild = Guild(self.bot.db, guild_data)
             if not guild.check_feature_access("events"):
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Premium Feature",
-                    "Events monitoring is a premium feature. Please upgrade to access this feature."
-                , guild=guild_model)
+                    "Events monitoring is a premium feature. Please upgrade to access this feature.",
+                    guild=guild_model
+                )
                 await ctx.send(embed=embed)
                 return
 
@@ -208,10 +210,11 @@ class Events(commands.Cog):
                     break
 
             if not server_exists:
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Error",
-                    f"Server '{server_id}' not found in this guild. Please use an existing server name."
-                , guild=guild_model)
+                    f"Server '{server_id}' not found in this guild. Please use an existing server name.",
+                    guild=guild_model
+                )
                 await ctx.send(embed=embed)
                 return
 
@@ -224,10 +227,11 @@ class Events(commands.Cog):
                 if self.bot.background_tasks[task_name].done():
                     self.bot.background_tasks.pop(task_name)
                 else:
-                    embed = EmbedBuilder.create_error_embed(
+                    embed = await EmbedBuilder.create_error_embed(
                         "Already Running",
-                        f"Events monitor for server {server_id} is already running."
-                    , guild=guild_model)
+                        f"Events monitor for server {server_id} is already running.",
+                        guild=guild_model
+                    )
                     await ctx.send(embed=embed)
                     return
 
@@ -261,10 +265,11 @@ class Events(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error starting events monitor: {e}", exc_info=True)
-            embed = EmbedBuilder.create_error_embed(
+            embed = await EmbedBuilder.create_error_embed(
                 "Error",
-                f"An error occurred while starting the events monitor: {e}"
-            , guild=guild_model)
+                f"An error occurred while starting the events monitor: {e}",
+                guild=guild_model
+            )
             await ctx.send(embed=embed)
 
     @events.command(name="stop", description="Stop monitoring events for a server")
@@ -291,10 +296,11 @@ class Events(commands.Cog):
             # Check if task is running
             task_name = f"events_{ctx.guild.id}_{server_id}"
             if task_name not in self.bot.background_tasks:
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Not Running",
-                    f"Events monitor for server {server_id} is not running."
-                , guild=guild_model)
+                    f"Events monitor for server {server_id} is not running.",
+                    guild=guild_model
+                )
                 await ctx.send(embed=embed)
                 return
 
@@ -314,10 +320,11 @@ class Events(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error stopping events monitor: {e}", exc_info=True)
-            embed = EmbedBuilder.create_error_embed(
+            embed = await EmbedBuilder.create_error_embed(
                 "Error",
-                f"An error occurred while stopping the events monitor: {e}"
-            , guild=guild_model)
+                f"An error occurred while stopping the events monitor: {e}",
+                guild=guild_model
+            )
             await ctx.send(embed=embed)
 
     @events.command(name="status", description="Check events monitor status")
@@ -338,10 +345,11 @@ class Events(commands.Cog):
             # Get guild data
             guild_data = await self.bot.db.guilds.find_one({"guild_id": ctx.guild.id})
             if not guild_data:
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Error",
-                    "This guild is not set up. Please use the setup commands first."
-                , guild=guild_model)
+                    "This guild is not set up. Please use the setup commands first.",
+                    guild=guild_model
+                )
                 await ctx.send(embed=embed)
                 return
 
@@ -405,10 +413,11 @@ class Events(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error checking events status: {e}", exc_info=True)
-            embed = EmbedBuilder.create_error_embed(
+            embed = await EmbedBuilder.create_error_embed(
                 "Error",
-                f"An error occurred while checking events status: {e}"
-            , guild=guild_model)
+                f"An error occurred while checking events status: {e}",
+                guild=guild_model
+            )
             await ctx.send(embed=embed)
 
     @events.command(name="list", description="List recent events for a server")
@@ -451,20 +460,22 @@ class Events(commands.Cog):
             # Get guild data
             guild_data = await self.bot.db.guilds.find_one({"guild_id": ctx.guild.id})
             if not guild_data:
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Error",
-                    "This guild is not set up. Please use the setup commands first."
-                , guild=guild_model)
+                    "This guild is not set up. Please use the setup commands first.",
+                    guild=guild_model
+                )
                 await ctx.send(embed=embed)
                 return
 
             # Check if the guild has access to events feature
             guild = Guild(self.bot.db, guild_data)
             if not guild.check_feature_access("events"):
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Premium Feature",
-                    "Events monitoring is a premium feature. Please upgrade to access this feature."
-                , guild=guild_model)
+                    "Events monitoring is a premium feature. Please upgrade to access this feature.",
+                    guild=guild_model
+                )
                 await ctx.send(embed=embed)
                 return
 
@@ -478,10 +489,11 @@ class Events(commands.Cog):
                     break
 
             if not server:
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Server Not Found",
-                    f"Server '{server_id}' not found in this guild. Please use an existing server name."
-                , guild=guild_model)
+                    f"Server '{server_id}' not found in this guild. Please use an existing server name.",
+                    guild=guild_model
+                )
                 await ctx.send(embed=embed)
                 return
 
@@ -492,7 +504,7 @@ class Events(commands.Cog):
                 events = await Event.get_by_server(self.bot.db, server_id, limit, event_type)
 
             if not events:
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "No Events",
                     f"No events found for server {server_name}" +
                     (f" with type '{event_type}'" if event_type != "all" else "")
@@ -543,10 +555,11 @@ class Events(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error listing events: {e}", exc_info=True)
-            embed = EmbedBuilder.create_error_embed(
+            embed = await EmbedBuilder.create_error_embed(
                 "Error",
-                f"An error occurred while listing events: {e}"
-            , guild=guild_model)
+                f"An error occurred while listing events: {e}",
+                guild=guild_model
+            )
             await ctx.send(embed=embed)
 
     @events.command(name="players", description="List online players for a server")
@@ -569,20 +582,22 @@ class Events(commands.Cog):
             # Get guild data
             guild_data = await self.bot.db.guilds.find_one({"guild_id": ctx.guild.id})
             if not guild_data:
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Error",
-                    "This guild is not set up. Please use the setup commands first."
-                , guild=guild_model)
+                    "This guild is not set up. Please use the setup commands first.",
+                    guild=guild_model
+                )
                 await ctx.send(embed=embed)
                 return
 
             # Check if the guild has access to connections feature
             guild = Guild(self.bot.db, guild_data)
             if not guild.check_feature_access("connections"):
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Premium Feature",
-                    "Player connections is a premium feature. Please upgrade to access this feature."
-                , guild=guild_model)
+                    "Player connections is a premium feature. Please upgrade to access this feature.",
+                    guild=guild_model
+                )
                 await ctx.send(embed=embed)
                 return
 
@@ -596,10 +611,11 @@ class Events(commands.Cog):
                     break
 
             if not server:
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Server Not Found",
-                    f"Server '{server_id}' not found in this guild. Please use an existing server name."
-                , guild=guild_model)
+                    f"Server '{server_id}' not found in this guild. Please use an existing server name.",
+                    guild=guild_model
+                )
                 await ctx.send(embed=embed)
                 return
 
@@ -635,10 +651,11 @@ class Events(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error listing online players: {e}", exc_info=True)
-            embed = EmbedBuilder.create_error_embed(
+            embed = await EmbedBuilder.create_error_embed(
                 "Error",
-                f"An error occurred while listing online players: {e}"
-            , guild=guild_model)
+                f"An error occurred while listing online players: {e}",
+                guild=guild_model
+            )
             await ctx.send(embed=embed)
 
     @events.command(name="config", description="Configure event notifications")
@@ -681,10 +698,11 @@ class Events(commands.Cog):
             # Get server
             server = await Server.get_by_id(self.bot.db, server_id, ctx.guild.id)
             if not server:
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Error",
-                    f"Could not find server with ID {server_id} for this guild."
-                , guild=guild_model)
+                    f"Could not find server with ID {server_id} for this guild.",
+                    guild=guild_model
+                )
                 await ctx.send(embed=embed)
                 return
 
@@ -737,10 +755,11 @@ class Events(commands.Cog):
             # Update settings
             success = await server.update_event_notifications(settings)
             if not success:
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Error",
-                    "Failed to update event notification settings. Please try again later."
-                , guild=guild_model)
+                    "Failed to update event notification settings. Please try again later.",
+                    guild=guild_model
+                )
                 await ctx.send(embed=embed)
                 return
 
@@ -766,10 +785,11 @@ class Events(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error configuring event notifications: {e}", exc_info=True)
-            embed = EmbedBuilder.create_error_embed(
+            embed = await EmbedBuilder.create_error_embed(
                 "Error",
-                f"An error occurred: {e}"
-            , guild=guild_model)
+                f"An error occurred: {e}",
+                guild=guild_model
+            )
             await ctx.send(embed=embed)
 
     @events.command(name="conn_config", description="Configure connection notifications")
@@ -802,10 +822,11 @@ class Events(commands.Cog):
             # Get server
             server = await Server.get_by_id(self.bot.db, server_id, ctx.guild.id)
             if not server:
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Error",
-                    f"Could not find server with ID {server_id} for this guild."
-                , guild=guild_model)
+                    f"Could not find server with ID {server_id} for this guild.",
+                    guild=guild_model
+                )
                 await ctx.send(embed=embed)
                 return
 
@@ -847,10 +868,11 @@ class Events(commands.Cog):
             # Update settings
             success = await server.update_connection_notifications(settings)
             if not success:
-                embed = EmbedBuilder.create_error_error_embed(
+                embed = await EmbedBuilder.create_error_error_embed(
                     "Error",
-                    "Failed to update connection notification settings. Please try again later."
-                , guild=guild_model)
+                    "Failed to update connection notification settings. Please try again later.",
+                    guild=guild_model
+                )
                 await ctx.send(embed=embed)
                 return
 
@@ -876,10 +898,11 @@ class Events(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error configuring connection notifications: {e}", exc_info=True)
-            embed = EmbedBuilder.create_error_embed(
+            embed = await EmbedBuilder.create_error_embed(
                 "Error",
-                f"An error occurred: {e}"
-            , guild=guild_model)
+                f"An error occurred: {e}",
+                guild=guild_model
+            )
             await ctx.send(embed=embed)
 
     @events.command(name="suicide_config", description="Configure suicide notifications")
@@ -914,10 +937,11 @@ class Events(commands.Cog):
             # Get server
             server = await Server.get_by_id(self.bot.db, server_id, ctx.guild.id)
             if not server:
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Error",
-                    f"Could not find server with ID {server_id} for this guild."
-                , guild=guild_model)
+                    f"Could not find server with ID {server_id} for this guild.",
+                    guild=guild_model
+                )
                 await ctx.send(embed=embed)
                 return
 
@@ -962,10 +986,11 @@ class Events(commands.Cog):
             # Update settings
             success = await server.update_suicide_notifications(settings)
             if not success:
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Error",
-                    "Failed to update suicide notification settings. Please try again later."
-                , guild=guild_model)
+                    "Failed to update suicide notification settings. Please try again later.",
+                    guild=guild_model
+                )
                 await ctx.send(embed=embed)
                 return
 
@@ -991,10 +1016,11 @@ class Events(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error configuring suicide notifications: {e}", exc_info=True)
-            embed = EmbedBuilder.create_error_embed(
+            embed = await EmbedBuilder.create_error_embed(
                 "Error",
-                f"An error occurred: {e}"
-            , guild=guild_model)
+                f"An error occurred: {e}",
+                guild=guild_model
+            )
             await ctx.send(embed=embed)
 
     async def _check_permission(self, ctx) -> bool:
@@ -1013,10 +1039,11 @@ class Events(commands.Cog):
         except Exception as e:
             logger.warning(f"Error getting guild model in permission check: {e}")
 
-        embed = EmbedBuilder.create_error_embed(
+        embed = await EmbedBuilder.create_error_embed(
             "Permission Denied",
             "You need administrator permission or the designated admin role to use this command.",
-            guild=guild_model)
+            guild=guild_model
+        )
         await ctx.send(embed=embed, ephemeral=True)
         return False
 
@@ -1044,7 +1071,7 @@ class Events(commands.Cog):
                         if guild_data:
                             guild_model = Guild(self.bot.db, guild_data)
 
-                        embed = EmbedBuilder.create_error_embed(
+                        embed = await EmbedBuilder.create_error_embed(
                             "Events Monitor Failed",
                             f"The events monitor for server {server_id} has failed: {task.exception()}",
                             guild=guild_model
@@ -1052,7 +1079,7 @@ class Events(commands.Cog):
                     except Exception as ex:
                         # Fallback to simple error embed
                         logger.error(f"Error creating themed embed: {ex}")
-                        embed = EmbedBuilder.create_error_embed(
+                        embed = await EmbedBuilder.create_error_embed(
                             "Events Monitor Failed",
                             f"The events monitor for server {server_id} has failed: {task.exception()}"
                         )
@@ -1473,7 +1500,7 @@ async def start_events_monitor(bot, guild_id: int, server_id: str):
                         channel = guild.get_channel(channel_id)
                         if channel:
                             guild_model = await Guild.get_by_id(bot.db, guild_id)
-                            embed = EmbedBuilder.create_error_embed(
+                            embed = await EmbedBuilder.create_error_embed(
                                 "Events Monitor Stopped",
                                 f"The events monitor for server {server.name} has stopped.",
                                 guild=guild_model

@@ -94,7 +94,7 @@ class Premium(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error in premium tiers command: {e}")
-            embed = EmbedBuilder.create_error_embed(
+            embed = await EmbedBuilder.create_error_embed(
                 "Error",
                 f"Failed to show premium tiers: {e}"
             )
@@ -117,7 +117,7 @@ class Premium(commands.Cog):
             # Get guild data
             guild_data = await self.bot.db.guilds.find_one({"guild_id": ctx.guild.id})
             if not guild_data:
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Guild Not Set Up",
                     "This guild is not set up. Please add a server first."
                 , guild=guild_model)
@@ -184,12 +184,12 @@ class Premium(commands.Cog):
             # Get guild model for themed embed if possible
             try:
                 guild_model = await Guild.get_by_id(self.bot.db, ctx.guild.id)
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Error",
                     f"An error occurred while checking premium status: {e}",
                     guild=guild_model)
             except:
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Error",
                     f"An error occurred while checking premium status: {e}")
             await ctx.send(embed=embed)
@@ -212,7 +212,7 @@ class Premium(commands.Cog):
             # Get guild data
             guild_data = await self.bot.db.guilds.find_one({"guild_id": ctx.guild.id})
             if not guild_data:
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Guild Not Set Up",
                     "This guild is not set up. Please add a server first."
                 , guild=guild_model)
@@ -224,7 +224,7 @@ class Premium(commands.Cog):
 
             # Check if already at max tier
             if guild.premium_tier >= 4:  # Overseer is tier 4
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Maximum Tier",
                     "This guild is already at the maximum premium tier (Overseer)."
                 , guild=guild_model)
@@ -234,7 +234,7 @@ class Premium(commands.Cog):
             # Get home guild
             home_guild = self.bot.get_guild(self.bot.home_guild_id)
             if not home_guild:
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Error",
                     "Could not find the home guild. Please contact the bot owner."
                 , guild=guild_model)
@@ -249,7 +249,7 @@ class Premium(commands.Cog):
                     break
 
             if not admin_channel:
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Error",
                     "Could not find an admin channel in the home guild. Please contact the bot owner directly."
                 , guild=guild_model)
@@ -293,7 +293,7 @@ class Premium(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error requesting premium upgrade: {e}", exc_info=True)
-            embed = EmbedBuilder.create_error_embed(
+            embed = await EmbedBuilder.create_error_embed(
                 "Error",
                 f"An error occurred while requesting a premium upgrade: {e}"
             , guild=guild_model)
@@ -366,7 +366,7 @@ class Premium(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error showing premium features: {e}", exc_info=True)
-            embed = EmbedBuilder.create_error_embed(
+            embed = await EmbedBuilder.create_error_embed(
                 "Error",
                 f"An error occurred while showing premium features: {e}"
             , guild=guild_model)
@@ -404,7 +404,7 @@ class Premium(commands.Cog):
 
             # Validate tier
             if tier < 0 or tier > 4:
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Invalid Tier",
                     "Premium tier must be between 0 and 4 (Scavenger, Survivor, Mercenary, Warlord, Overseer)."
                 , guild=guild_model)
@@ -415,7 +415,7 @@ class Premium(commands.Cog):
             try:
                 guild_id_int = int(guild_id)
             except ValueError:
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Invalid Guild ID",
                     "Guild ID must be a valid integer."
                 , guild=guild_model)
@@ -425,7 +425,7 @@ class Premium(commands.Cog):
             # Get guild data
             guild = await Guild.get_by_id(self.bot.db, guild_id_int)
             if not guild:
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Guild Not Found",
                     f"Could not find a guild with ID {guild_id}."
                 , guild=guild_model)
@@ -515,12 +515,12 @@ class Premium(commands.Cog):
             # Get guild model for themed embed if possible
             try:
                 admin_guild_model = await Guild.get_by_id(self.bot.db, ctx.guild.id)
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Error",
                     f"An error occurred while setting the premium tier: {e}",
                     guild=admin_guild_model)
             except:
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Error",
                     f"An error occurred while setting the premium tier: {e}")
             await ctx.send(embed=embed)
@@ -545,7 +545,7 @@ class Premium(commands.Cog):
             if not has_admin_permission(ctx):
                 # Get guild model for themed embed
                 guild_model = await Guild.get_by_id(self.bot.db, ctx.guild.id)
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Permission Denied",
                     "You need administrator permission or the designated admin role to use this command.",
                     guild=guild_model)
@@ -556,7 +556,7 @@ class Premium(commands.Cog):
             guild = await Guild.get_by_id(self.bot.db, ctx.guild.id)
             if not guild:
                 # No guild model, so we use default
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Guild Not Set Up",
                     "This guild is not set up. Please add a server first.")
                 await ctx.send(embed=embed)
@@ -564,7 +564,7 @@ class Premium(commands.Cog):
 
             # Check premium tier
             if not guild.check_feature_access("custom_embeds"):
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Premium Feature",
                     "Custom themes are only available for Warlord tier or higher.",
                     guild=guild)
@@ -574,7 +574,7 @@ class Premium(commands.Cog):
             # Check if theme exists
             from config import EMBED_THEMES
             if theme != "default" and theme not in EMBED_THEMES:
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Invalid Theme",
                     f"The theme '{theme}' does not exist.",
                     guild=guild)
@@ -584,7 +584,7 @@ class Premium(commands.Cog):
             # Set theme
             success = await guild.set_theme(theme)
             if not success:
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Error",
                     "Failed to set theme. Please try again later.",
                     guild=guild)
@@ -611,12 +611,12 @@ class Premium(commands.Cog):
             # Get guild model for themed embed
             try:
                 guild_model = await Guild.get_by_id(self.bot.db, ctx.guild.id)
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Error",
                     f"An error occurred while setting the theme: {e}",
                     guild=guild_model)
             except:
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Error",
                     f"An error occurred while setting the theme: {e}")
             await ctx.send(embed=embed)

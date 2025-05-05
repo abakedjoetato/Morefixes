@@ -595,13 +595,13 @@ class Stats(commands.Cog):
                 prey_kills = favorite_victim.get('kill_count', 0)
                 prey_deaths = max(favorite_victim.get('death_count', 0), 1)  # Treat 0 as 1 for KDR calculation
                 prey_kd = round(prey_kills / prey_deaths, 2)
-                
+
                 matchups_embed.add_field(
                     name=prey_title,
                     value=f"{favorite_victim['player_name']}\n{prey_kills} Kills  {prey_kd} KD",
                     inline=True
                 )
-                
+
                 # Add a note if this data is from the hourly tracker
                 if player_stats.get("rivalries_last_updated"):
                     matchups_embed.set_footer(text=f"Rivalries updated: {format_time_ago(player_stats.get('rivalries_last_updated'))}")
@@ -613,7 +613,7 @@ class Stats(commands.Cog):
                 nemesis_deaths = nemesis.get('kill_count', 0)  # Their kills = player's deaths
                 nemesis_kills = nemesis.get('death_count', 0)  # Their deaths = player's kills
                 nemesis_kd = round(nemesis_kills / max(nemesis_deaths, 1), 2)
-                
+
                 matchups_embed.add_field(
                     name=nemesis_title,
                     value=f"{nemesis['player_name']}\n{nemesis_deaths} Deaths  {nemesis_kd} KD",

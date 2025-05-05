@@ -31,41 +31,41 @@ logger = logging.getLogger(__name__)
 
 class BountiesCog(commands.GroupCog, name="bounty"):
     """Bounty system commands"""
-    
+
     def __init__(self, bot):
         super().__init__()
         self.bot = bot
-        
+
         # Start the background task to check for expired bounties
         self.check_expired_bounties.start()
-        
+
         # Start the background task to check for auto-bounties
         self.check_auto_bounties.start()
-        
+
     # Using shared utility function from utils.server_utils for server existence check
-        
+
     def cog_unload(self):
         """Called when the cog is unloaded"""
         self.check_expired_bounties.cancel()
         self.check_auto_bounties.cancel()
-        
+
     @tasks.loop(minutes=15)
     async def check_expired_bounties(self):
         """Background task to expire old bounties"""
         try:
             # Get database connection
             from utils.database import get_db, DatabaseManager
-            
+
             # Safely get database with validation
             try:
                 db = await get_db()
                 if db is None or not isinstance(db, DatabaseManager) or not db._connected:
                     logger.warning("Database not properly initialized, skipping expired bounties check")
                     return
-                
+
                 # Explicitly ensure DB connection before proceeding
                 await db.ensure_connected()
-                
+
                 # Expire old bounties
                 expired_count = await Bounty.expire_old_bounties(db)
                 if expired_count > 0:
@@ -75,47 +75,47 @@ class BountiesCog(commands.GroupCog, name="bounty"):
                 return
         except Exception as e:
             logger.error(f"Error in check_expired_bounties: {e}", exc_info=True)
-            
+
     @tasks.loop(minutes=5)
     async def check_auto_bounties(self):
         """Background task to create automatic bounties"""
         try:
             # Get database safely
             from utils.database import get_db, DatabaseManager
-            
+
             try:
                 db = await get_db()
                 if db is None or not isinstance(db, DatabaseManager) or not db._connected:
                     logger.warning("Database not properly initialized, skipping auto bounties check")
                     return
-                
+
                 # Explicitly ensure DB connection before proceeding
                 await db.ensure_connected()
-                
+
                 # Now safely access collections
                 guilds_cursor = db.db.guilds.find({})
-                
+
                 # Iterate through guilds
                 async for guild_data in guilds_cursor:
                     guild_id = str(guild_data.get("guild_id"))
-                    
+
                     # Check if auto-bounties are enabled
                     auto_bounty = guild_data.get("auto_bounty", False)
                     if not auto_bounty:
                         continue
-                        
+
                     # Get guild settings from dict
                     guild = Guild(**guild_data)
                     if not guild.premium_tier >= 2:  # Auto-bounty requires premium tier 2+
                         continue
-                        
+
                     # Get auto-bounty settings
                     auto_bounty_settings = guild_data.get("auto_bounty_settings", {})
                     kill_threshold = auto_bounty_settings.get("kill_threshold", 5)
                     repeat_threshold = auto_bounty_settings.get("repeat_threshold", 3)
                     time_window = auto_bounty_settings.get("time_window", 10)  # minutes
                     reward_amount = auto_bounty_settings.get("reward_amount", 100)
-                    
+
                     # Process each server
                     servers = getattr(guild, 'servers', guild_data.get('servers', []))
                     for server_entry in servers:
@@ -124,7 +124,7 @@ class BountiesCog(commands.GroupCog, name="bounty"):
                             server_id = str(server_entry.get('server_id', ''))
                         else:
                             server_id = str(server_entry)
-                            
+
                         if not server_id:
                             logger.warning(f"Empty server_id found in guild {guild_id}, skipping")
                             continue
@@ -139,7 +139,7 @@ class BountiesCog(commands.GroupCog, name="bounty"):
                                 repeat_threshold=repeat_threshold,
                                 db=db
                             )
-                            
+
                             for target in targets:
                                 # Check if we should create a bounty
                                 if target["killstreak"] >= kill_threshold:
@@ -173,13 +173,13 @@ class BountiesCog(commands.GroupCog, name="bounty"):
                 logger.error(f"Error in check_auto_bounties database operations: {e}", exc_info=True)
         except Exception as e:
             logger.error(f"Error in check_auto_bounties: {e}", exc_info=True)
-            
+
     async def _create_auto_bounty(self, guild_id: str, server_id: str, 
                               player_id: str, player_name: str, 
                               reason: str, reward: int,
                               bounty_type: str = "killstreak"):
         """Create an automatic bounty on a player
-        
+
         Args:
             guild_id: Discord guild ID
             server_id: Game server ID
@@ -197,12 +197,12 @@ class BountiesCog(commands.GroupCog, name="bounty"):
             if existing_bounties:
                 # Already has an active bounty, don't create another
                 return
-            
+
             # Create the bounty
             # The bot is the placer for auto-bounties
             bot_id = str(self.bot.user.id)
             bot_name = self.bot.user.name
-            
+
             # Create the bounty
             bounty = await Bounty.create(
                 db=db,
@@ -217,10 +217,10 @@ class BountiesCog(commands.GroupCog, name="bounty"):
                 source=Bounty.SOURCE_AUTO,
                 lifespan_hours=1.0  # Auto-bounties last 1 hour
             )
-            
+
             # Log the creation
             logger.info(f"Created auto-bounty on {player_name} ({player_id}) for {reason}")
-            
+
             # Announce the bounty in the configured channel
             # Reuse the existing DB connection
             guild_data = await db.db.guilds.find_one({"guild_id": guild_id})
@@ -236,15 +236,15 @@ class BountiesCog(commands.GroupCog, name="bounty"):
                         logger.error(f"Error announcing auto-bounty: {e}")
         except Exception as e:
             logger.error(f"Error creating auto-bounty: {e}", exc_info=True)
-            
+
     def _create_bounty_embed(self, bounty, title: str, is_auto: bool = False) -> discord.Embed:
         """Create an embed for a bounty
-        
+
         Args:
             bounty: The bounty to create an embed for (Bounty object)
             title: Title for the embed
             is_auto: Whether this is an auto-bounty
-            
+
         Returns:
             discord.Embed: The created embed
         """
@@ -260,22 +260,22 @@ class BountiesCog(commands.GroupCog, name="bounty"):
             return embed
         # Get the base embed
         embed = EmbedBuilder.info(title=title)
-        
+
         # Set the description
         if is_auto:
             embed.description = f"💀 **Auto-Bounty Alert** 💀\n\n"
         else:
             embed.description = f"💰 **Bounty Placed** 💰\n\n"
-            
+
         # Add target info
         embed.add_field(name="Target", value=bounty.target_name, inline=True)
-        
+
         # Add reward info
         embed.add_field(name="Reward", value=f"{bounty.reward} coins", inline=True)
-        
+
         # Add reason
         embed.add_field(name="Reason", value=bounty.reason, inline=False)
-        
+
         # Add expiration
         if bounty.expires_at:
             # Calculate time remaining
@@ -290,22 +290,22 @@ class BountiesCog(commands.GroupCog, name="bounty"):
                 )
             else:
                 embed.add_field(name="Expires", value="Expired", inline=True)
-                
+
         # Add placer info if not auto
         if not is_auto:
             embed.add_field(name="Placed By", value=bounty.placed_by_name, inline=True)
-            
+
         # Add ID reference
         embed.set_footer(text=f"Bounty ID: {bounty.id}")
-        
+
         return embed
-        
+
     async def _format_bounty_list(self, bounties: List[Bounty]) -> List[discord.Embed]:
         """Format a list of bounties into embeds
-        
+
         Args:
             bounties: List of bounties to format
-            
+
         Returns:
             List of embeds, one per page
         """
@@ -316,21 +316,21 @@ class BountiesCog(commands.GroupCog, name="bounty"):
                 description="There are no active bounties at this time."
             )
             return [embed]
-            
+
         # Sort bounties by expiration time (soonest first)
         bounties.sort(key=lambda b: b.expires_at if b.expires_at else datetime.max)
-        
+
         # Create pages (5 bounties per page)
         pages = []
         for i in range(0, len(bounties), 5):
             page_bounties = bounties[i:i+5]
-            
+
             # Create embed for this page
             embed = EmbedBuilder.info(
                 title=f"Active Bounties (Page {len(pages)+1}/{(len(bounties)-1)//5+1})",
                 description="Here are the currently active bounties:"
             )
-            
+
             # Add each bounty to the embed
             for bounty in page_bounties:
                 # Calculate time remaining
@@ -341,7 +341,7 @@ class BountiesCog(commands.GroupCog, name="bounty"):
                     expires = f"In {minutes} minutes"
                 else:
                     expires = "Expired"
-                    
+
                 # Format field
                 name = f"💰 {bounty.target_name} (ID: {bounty.id[:6]})"
                 value = (
@@ -350,13 +350,13 @@ class BountiesCog(commands.GroupCog, name="bounty"):
                     f"**Expires:** {expires}\n"
                     f"**Placed By:** {bounty.placed_by_name}"
                 )
-                
+
                 embed.add_field(name=name, value=value, inline=False)
-                
+
             pages.append(embed)
-            
+
         return pages
-            
+
     @app_commands.command(name="place", description="Place a bounty on a player")
     @app_commands.describe(
         server_id="Server to place the bounty on",
@@ -371,7 +371,7 @@ class BountiesCog(commands.GroupCog, name="bounty"):
                        reward: int, 
                        reason: str = "No reason provided"):
         """Place a bounty on a player
-        
+
         Args:
             interaction: Discord interaction
             server_id: ID of the server to place the bounty on
@@ -380,40 +380,40 @@ class BountiesCog(commands.GroupCog, name="bounty"):
             reason: Reason for the bounty (optional)
         """
         await interaction.response.defer(ephemeral=False)
-        
+
         try:
             # Get player info
             from utils.database import get_db
             db = await get_db()
-            
+
             # Get guild info
             guild_id = str(interaction.guild_id)
             guild = await Guild.get_by_guild_id(db, guild_id)
-            
+
             if not guild:
                 await interaction.followup.send(
                     "Error: Guild not found in database.",
                     ephemeral=True
                 )
                 return
-                
+
             # Use the utility method to check if the server exists
             server_exists = await check_server_exists(db, guild.id, server_id)
-            
+
             if not server_exists:
                 await interaction.followup.send(
                     f"Error: Server with ID {server_id} not found for this guild.",
                     ephemeral=True
                 )
                 return
-                
+
             # Get player by name
             player_query = {
                 "server_id": server_id,
                 "name": {"$regex": f"^{player_name}$", "$options": "i"}  # Case-insensitive exact match
             }
             player_data = await db.db.players.find_one(player_query)
-            
+
             if not player_data:
                 # Try partial match
                 player_query = {
@@ -421,21 +421,21 @@ class BountiesCog(commands.GroupCog, name="bounty"):
                     "name": {"$regex": player_name, "$options": "i"}  # Case-insensitive partial match
                 }
                 player_data = await db.db.players.find_one(player_query)
-                
+
             if not player_data:
                 await interaction.followup.send(
                     f"Error: Could not find player with name '{player_name}' on this server.",
                     ephemeral=True
                 )
                 return
-                
+
             player_id = player_data.get("player_id")
             player_name = player_data.get("name")  # Use exact name from database
-            
+
             # Check if player is trying to place a bounty on themselves
             is_self_bounty = False
             discord_id = str(interaction.user.id)
-            
+
             # Check if the player is linked to the Discord user
             link_query = {
                 "discord_id": discord_id,
@@ -444,59 +444,59 @@ class BountiesCog(commands.GroupCog, name="bounty"):
                 "verified": True
             }
             self_link = await db.db.player_links.find_one(link_query)
-            
+
             if self_link:
                 await interaction.followup.send(
                     "Error: You cannot place a bounty on yourself.",
                     ephemeral=True
                 )
                 return
-                
+
             # Check if user has enough currency
             economy = await Economy.get_by_player(db, discord_id, server_id)
             if not economy:
                 # Create economy profile if it doesn't exist
                 economy = await Economy.create(db, discord_id, server_id)
-                
+
             if economy.balance < reward:
                 await interaction.followup.send(
                     f"Error: You don't have enough currency. Current balance: {economy.balance} coins.",
                     ephemeral=True
                 )
                 return
-                
+
             # Validate reward amount
             min_bounty = 50
             max_bounty = 10000
-            
+
             if reward < min_bounty:
                 await interaction.followup.send(
                     f"Error: Minimum bounty amount is {min_bounty} coins.",
                     ephemeral=True
                 )
                 return
-                
+
             if reward > max_bounty:
                 await interaction.followup.send(
                     f"Error: Maximum bounty amount is {max_bounty} coins.",
                     ephemeral=True
                 )
                 return
-                
+
             # Deduct the currency
             success = await economy.remove_currency(reward, "bounty_placed", {
                 "target_id": player_id,
                 "target_name": player_name,
                 "reason": reason
             })
-            
+
             if not success:
                 await interaction.followup.send(
                     "Error: Failed to deduct currency for the bounty.",
                     ephemeral=True
                 )
                 return
-                
+
             # Create the bounty
             bounty = await Bounty.create(
                 db=db,
@@ -511,11 +511,11 @@ class BountiesCog(commands.GroupCog, name="bounty"):
                 source=Bounty.SOURCE_PLAYER,
                 lifespan_hours=1.0  # Player bounties last 1 hour
             )
-            
+
             # Create and send the embed
             embed = self._create_bounty_embed(bounty, "Bounty Placed")
             await interaction.followup.send(embed=embed)
-            
+
             # Also announce in bounty channel if configured
             bounty_channel_id = None
             if hasattr(guild, "data") and isinstance(guild.data, dict):
@@ -527,19 +527,19 @@ class BountiesCog(commands.GroupCog, name="bounty"):
                         await channel.send(embed=embed)
                 except Exception as e:
                     logger.error(f"Error announcing bounty: {e}")
-                    
+
         except Exception as e:
             logger.error(f"Error placing bounty: {e}", exc_info=True)
             await interaction.followup.send(
                 f"An error occurred while placing the bounty: {str(e)}",
                 ephemeral=True
             )
-    
+
     @place_bounty.autocomplete("server_id")
     async def server_id_autocomplete(self, interaction: discord.Interaction, current: str):
         """Autocomplete for server selection"""
         return await get_server_selection(interaction, current)
-    
+
     @app_commands.command(name="active", description="View active bounties")
     @app_commands.describe(
         server_id="Server to view bounties for"
@@ -547,66 +547,66 @@ class BountiesCog(commands.GroupCog, name="bounty"):
     @premium_tier_required(2)  # Bounties require premium tier 2+
     async def active_bounties(self, interaction: discord.Interaction, server_id: str):
         """View active bounties
-        
+
         Args:
             interaction: Discord interaction
             server_id: ID of the server to view bounties for
         """
         await interaction.response.defer(ephemeral=False)
-        
+
         try:
             # Get guild info
             guild_id = str(interaction.guild_id)
-            
+
             # Get database connection
             from utils.database import get_db
             db = await get_db()
-            
+
             # Get guild data
             guild = await Guild.get_by_guild_id(db, guild_id)
-            
+
             if not guild:
                 await interaction.followup.send(
                     "Error: Guild not found in database.",
                     ephemeral=True
                 )
                 return
-                
+
             # Use the utility method to check if the server exists
             server_exists = await check_server_exists(db, guild.id, server_id)
-            
+
             if not server_exists:
                 await interaction.followup.send(
                     f"Error: Server with ID {server_id} not found for this guild.",
                     ephemeral=True
                 )
                 return
-            
+
             # Get active bounties
             bounties = await Bounty.get_active_bounties(db, server_id)
-            
+
             # Format and send the bounties
             embeds = await self._format_bounty_list(bounties)
-            
+
             # Send the first page
             if len(embeds) > 1:
                 # TODO: Implement pagination for multiple pages
                 await interaction.followup.send(embed=embeds[0])
             else:
                 await interaction.followup.send(embed=embeds[0])
-                
+
         except Exception as e:
             logger.error(f"Error viewing active bounties: {e}", exc_info=True)
             await interaction.followup.send(
                 f"An error occurred while retrieving bounties: {str(e)}",
                 ephemeral=True
             )
-    
+
     @active_bounties.autocomplete("server_id")
     async def server_id_autocomplete_active(self, interaction: discord.Interaction, current: str):
         """Autocomplete for server selection"""
         return await get_server_selection(interaction, current)
-    
+
     @app_commands.command(name="my", description="View your placed and claimed bounties")
     @app_commands.describe(
         server_id="Server to view bounties for",
@@ -621,43 +621,43 @@ class BountiesCog(commands.GroupCog, name="bounty"):
                       server_id: str,
                       view_type: str = "placed"):
         """View your placed or claimed bounties
-        
+
         Args:
             interaction: Discord interaction
             server_id: ID of the server to view bounties for
             view_type: Type of bounties to view (placed or claimed)
         """
         await interaction.response.defer(ephemeral=True)
-        
+
         try:
             # Get guild info
             guild_id = str(interaction.guild_id)
             discord_id = str(interaction.user.id)
-            
+
             # Get database connection
             from utils.database import get_db
             db = await get_db()
-            
+
             # Get guild data
             guild = await Guild.get_by_guild_id(db, guild_id)
-            
+
             if not guild:
                 await interaction.followup.send(
                     "Error: Guild not found in database.",
                     ephemeral=True
                 )
                 return
-                
+
             # Use the utility method to check if the server exists
             server_exists = await check_server_exists(db, guild.id, server_id)
-            
+
             if not server_exists:
                 await interaction.followup.send(
                     f"Error: Server with ID {server_id} not found for this guild.",
                     ephemeral=True
                 )
                 return
-            
+
             # Get bounties based on type
             if view_type == "placed":
                 bounties = await Bounty.get_bounties_placed_by(db, discord_id, server_id)
@@ -665,10 +665,10 @@ class BountiesCog(commands.GroupCog, name="bounty"):
             else:  # claimed
                 bounties = await Bounty.get_bounties_claimed_by(db, discord_id, server_id)
                 title = "Bounties You've Claimed"
-            
+
             # Filter to most recent 20 bounties
             bounties = bounties[:20]
-            
+
             # Create the embed
             if not bounties:
                 embed = EmbedBuilder.info(
@@ -677,18 +677,18 @@ class BountiesCog(commands.GroupCog, name="bounty"):
                 )
                 await interaction.followup.send(embed=embed, ephemeral=True)
                 return
-                
+
             # Create pages
             embed = EmbedBuilder.info(
                 title=title,
                 description=f"Here are your most recent {view_type} bounties on this server:"
             )
-            
+
             # Add each bounty
             for i, bounty in enumerate(bounties[:10]):  # Limit to 10 per page
                 if view_type == "placed":
                     name = f"#{i+1}: Target: {bounty.target_name}"
-                    
+
                     # Status info
                     if bounty.status == Bounty.STATUS_ACTIVE:
                         status = "Active"
@@ -704,7 +704,7 @@ class BountiesCog(commands.GroupCog, name="bounty"):
                         status = f"Claimed by {bounty.claimed_by_name}"
                     else:  # expired
                         status = "Expired"
-                        
+
                     value = (
                         f"**Reward:** {bounty.reward} coins\n"
                         f"**Reason:** {bounty.reason}\n"
@@ -718,23 +718,23 @@ class BountiesCog(commands.GroupCog, name="bounty"):
                         f"**Placed By:** {bounty.placed_by_name}\n"
                         f"**Claimed:** <t:{int(bounty.claimed_at.timestamp())}:R>"
                     )
-                    
+
                 embed.add_field(name=name, value=value, inline=False)
-                
+
             await interaction.followup.send(embed=embed, ephemeral=True)
-                
+
         except Exception as e:
             logger.error(f"Error viewing my bounties: {e}", exc_info=True)
             await interaction.followup.send(
                 f"An error occurred while retrieving your bounties: {str(e)}",
                 ephemeral=True
             )
-    
+
     @my_bounties.autocomplete("server_id")
     async def server_id_autocomplete_my(self, interaction: discord.Interaction, current: str):
         """Autocomplete for server selection"""
         return await get_server_selection(interaction, current)
-    
+
     @app_commands.command(name="settings", description="Configure bounty system settings")
     @app_commands.describe(
         setting="Setting to configure",
@@ -756,7 +756,7 @@ class BountiesCog(commands.GroupCog, name="bounty"):
                           value: Optional[str] = None,
                           channel: Optional[discord.TextChannel] = None):
         """Configure bounty system settings
-        
+
         Args:
             interaction: Discord interaction
             setting: Setting to configure
@@ -764,13 +764,13 @@ class BountiesCog(commands.GroupCog, name="bounty"):
             channel: Channel for bounty announcements (for bounty_channel setting)
         """
         await interaction.response.defer(ephemeral=True)
-        
+
         try:
             # Get guild info
             guild_id = str(interaction.guild_id)
             from utils.database import get_db
             db = await get_db()
-            
+
             # Get guild data
             guild_data = await db.db.guilds.find_one({"guild_id": guild_id})
             if not guild_data:
@@ -779,7 +779,7 @@ class BountiesCog(commands.GroupCog, name="bounty"):
                     ephemeral=True
                 )
                 return
-                
+
             # Initialize auto_bounty_settings if it doesn't exist
             if "auto_bounty_settings" not in guild_data:
                 guild_data["auto_bounty_settings"] = {
@@ -788,14 +788,14 @@ class BountiesCog(commands.GroupCog, name="bounty"):
                     "time_window": 10,
                     "reward_amount": 100
                 }
-                
+
             # Handle different settings
             if setting == "auto_bounty":
                 # Toggle auto-bounty system
                 new_value = value.lower() in ["true", "on", "yes", "1"] if value else not guild_data.get("auto_bounty", False)
                 update = {"auto_bounty": new_value}
                 message = f"Auto-bounty system is now {'enabled' if new_value else 'disabled'}."
-                
+
             elif setting == "bounty_channel":
                 # Set bounty announcement channel
                 if not channel:
@@ -804,10 +804,10 @@ class BountiesCog(commands.GroupCog, name="bounty"):
                         ephemeral=True
                     )
                     return
-                    
+
                 update = {"bounty_channel": str(channel.id)}
                 message = f"Bounty announcements will now be sent to {channel.mention}."
-                
+
             else:
                 # Other numeric settings
                 if not value or not value.isdigit():
@@ -816,9 +816,9 @@ class BountiesCog(commands.GroupCog, name="bounty"):
                         ephemeral=True
                     )
                     return
-                    
+
                 numeric_value = int(value)
-                
+
                 # Validate based on setting
                 if setting == "kill_threshold":
                     if numeric_value < 3 or numeric_value > 10:
@@ -829,7 +829,7 @@ class BountiesCog(commands.GroupCog, name="bounty"):
                         return
                     update = {"auto_bounty_settings.kill_threshold": numeric_value}
                     message = f"Kill threshold for auto-bounties set to {numeric_value}."
-                    
+
                 elif setting == "repeat_threshold":
                     if numeric_value < 2 or numeric_value > 8:
                         await interaction.followup.send(
@@ -839,7 +839,7 @@ class BountiesCog(commands.GroupCog, name="bounty"):
                         return
                     update = {"auto_bounty_settings.repeat_threshold": numeric_value}
                     message = f"Target fixation threshold set to {numeric_value}."
-                    
+
                 elif setting == "time_window":
                     if numeric_value < 5 or numeric_value > 30:
                         await interaction.followup.send(
@@ -849,37 +849,36 @@ class BountiesCog(commands.GroupCog, name="bounty"):
                         return
                     update = {"auto_bounty_settings.time_window": numeric_value}
                     message = f"Time window for auto-bounties set to {numeric_value} minutes."
-                    
+
                 elif setting == "reward_amount":
-                    if numeric_value < 50 or numeric_value > 1000:
-                        await interaction.followup.send(
+                    if numeric_value < 50 or numeric_value > 1000:                        await interaction.followup.send(
                             "Error: Reward amount must be between 50 and 1000.",
                             ephemeral=True
                         )
                         return
                     update = {"auto_bounty_settings.reward_amount": numeric_value}
                     message = f"Auto-bounty reward amount set to {numeric_value} coins."
-                    
+
                 else:
                     await interaction.followup.send(
                         "Error: Invalid setting.",
                         ephemeral=True
                     )
                     return
-            
+
             # Update the guild data
             await db.db.guilds.update_one(
                 {"guild_id": guild_id},
                 {"$set": update}
             )
-            
+
             # Send confirmation
             embed = EmbedBuilder.success(
                 title="Bounty Settings Updated",
                 description=message
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
-                
+
         except Exception as e:
             logger.error(f"Error updating bounty settings: {e}", exc_info=True)
             await interaction.followup.send(

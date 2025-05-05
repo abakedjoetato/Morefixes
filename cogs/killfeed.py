@@ -365,7 +365,7 @@ class Killfeed(commands.Cog):
                         if guild_data:
                             guild_model = Guild(self.bot.db, guild_data)
 
-                        embed = EmbedBuilder.create_error_embed(
+                        embed = await EmbedBuilder.create_error_embed(
                             "Killfeed Monitor Failed",
                             f"The killfeed monitor for server {server_id} has failed: {task.exception()}",
                             guild=guild_model
@@ -373,7 +373,7 @@ class Killfeed(commands.Cog):
                     except Exception as ex:
                         # Fallback to simple error embed
                         logger.error(f"Error creating themed embed: {ex}")
-                        embed = EmbedBuilder.create_error_embed(
+                        embed = await EmbedBuilder.create_error_embed(
                             "Killfeed Monitor Failed",
                             f"The killfeed monitor for server {server_id} has failed: {task.exception()}"
                         )
@@ -712,7 +712,7 @@ async def start_killfeed_monitor(bot, guild_id: int, server_id: str):
                         channel = guild.get_channel(channel_id)
                         if channel:
                             guild_model = await Guild.get_by_id(bot.db, guild_id)
-                            embed = EmbedBuilder.create_error_embed(
+                            embed = await EmbedBuilder.create_error_embed(
                                 "Killfeed Monitor Stopped",
                                 f"The killfeed monitor for server {server.name} has stopped.",
                                 guild=guild_model
@@ -992,7 +992,7 @@ async def update_player_stats(bot, server_id, kill_event):
                     killer_id=killer.id,
                     killer_name=killer.name
                 )
-                
+
             # Update rivalry data (Prey/Nemesis tracking)
             if has_rivalries:
                 try:
