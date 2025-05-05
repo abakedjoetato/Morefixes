@@ -86,10 +86,11 @@ class Admin(commands.Cog):
 
             # Check if user is a home guild admin
             if not is_home_guild_admin(self.bot, ctx.author.id):
-                embed = EmbedBuilder.create_error_embed(
+                embed = await EmbedBuilder.create_error_embed(
                     "Permission Denied",
-                    "Only home guild administrators can use this command."
-                , guild=guild_model)
+                    "Only home guild administrators can use this command.",
+                    guild=guild_model
+                )
                 await ctx.send(embed=embed, ephemeral=True)
                 return
 
