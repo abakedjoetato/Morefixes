@@ -153,7 +153,7 @@ class Events(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error displaying events help: {e}", exc_info=True)
-            embed = EmbedBuilder.create_error_embed(
+            embed = await EmbedBuilder.create_error_embed(
                 "Error",
                 f"An error occurred: {e}"
             , guild=guild_model)
@@ -858,7 +858,7 @@ class Events(commands.Cog):
 
                 embed.add_field(
                     name="How to Configure",
-                    value="Use `/events conn_config server:<server_name> connect:<true/false> disconnect:<true/false>` to enable or disable notifications.",
+                    value="Use `/eventsconn_config server:<server_name> connect:<true/false> disconnect:<true/false>` to enable or disable notifications.",
                     inline=False
                 )
 
@@ -1544,7 +1544,7 @@ async def process_event(bot, server, event_data, channel):
             guild_model = Guild(bot.db, guild_data)
 
         # Create embed for the event
-        embed = EmbedBuilder.create_event_embed(event_data, guild=guild_model)
+        embed = await EmbedBuilder.create_event_embed(event_data, guild=guild_model)
 
         # Get the icon file for the specific event type
         from utils.embed_icons import create_discord_file, get_event_icon

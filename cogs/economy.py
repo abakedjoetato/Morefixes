@@ -271,20 +271,20 @@ class Economy(commands.Cog):
             success, message = await economy.claim_daily(daily_amount)
 
             if success:
-                embed = discord.Embed(
-                    title="💰 Daily Reward",
-                    description=message,
-                    color=discord.Color.green()
+                embed = await EmbedBuilder.create_success_embed(
+                    "💰 Daily Reward",
+                    message,
+                    guild=guild_model
                 )
 
                 # Get new balance
                 balance = await economy.get_balance()
                 embed.add_field(name="New Balance", value=f"{balance} credits", inline=False)
             else:
-                embed = discord.Embed(
-                    title="❌ Daily Reward",
-                    description=message,
-                    color=discord.Color.red()
+                embed = await EmbedBuilder.create_error_embed(
+                    "❌ Daily Reward",
+                    message,
+                    guild=guild_model
                 )
 
             await ctx.send(embed=embed)
@@ -807,7 +807,7 @@ class Economy(commands.Cog):
                 embed = await EmbedBuilder.create_error_embed(
                     "Error",
                     "This guild is not set up. Please use the setup commands first."
-                , guild=guild_model)
+                , guild=guild_model))
                 await ctx.send(embed=embed)
                 return
 

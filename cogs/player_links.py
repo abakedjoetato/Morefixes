@@ -21,14 +21,14 @@ logger = logging.getLogger(__name__)
 
 class PlayerLinksCog(commands.Cog):
     """Commands for linking Discord users to in-game players"""
-    
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-    
+
     async def cog_unload(self) -> None:
         """Called when the cog is unloaded"""
         logger.info("Unloading PlayerLinksCog")
-    
+
     @app_commands.command(name="link")
     @app_commands.describe(
         player_name="The in-game player name to link to your Discord account",
@@ -41,19 +41,19 @@ class PlayerLinksCog(commands.Cog):
         server_id: Optional[str] = None
     ) -> None:
         """Link your Discord account to an in-game player
-        
+
         Args:
             interaction: Discord interaction
             player_name: In-game player name
             server_id: Server ID (optional)
         """
         await interaction.response.defer(ephemeral=True)
-        
+
         # Get server ID from guild config if not provided
         if not server_id:
             # For now, hardcode a test server ID
             server_id = "test_server"
-        
+
         # Check if player exists
         player = await Player.get_by_player_name(server_id, player_name)
         if not player:
@@ -63,7 +63,7 @@ class PlayerLinksCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         # Check if player is already linked to another Discord user
         existing_link = await PlayerLink.get_by_player_id(server_id, player.player_id)
         if existing_link and existing_link.discord_id != str(interaction.user.id):
@@ -73,7 +73,7 @@ class PlayerLinksCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         # Create link
         link = await PlayerLink.create_or_update(
             server_id=server_id,
@@ -83,16 +83,16 @@ class PlayerLinksCog(commands.Cog):
             player_name=player.player_name,
             verify_code=None  # No verification needed for now
         )
-        
+
         # Update player Discord ID
         await player.set_discord_id(str(interaction.user.id))
-        
+
         embed = EmbedBuilder.success(
             title="Player Linked",
             description=f"Successfully linked your Discord account to player `{player_name}` on server `{server_id}`."
         )
         await interaction.followup.send(embed=embed, ephemeral=True)
-    
+
     @app_commands.command(name="unlink")
     @app_commands.describe(
         player_name="The in-game player name to unlink from your Discord account",
@@ -105,19 +105,19 @@ class PlayerLinksCog(commands.Cog):
         server_id: Optional[str] = None
     ) -> None:
         """Unlink an in-game player from your Discord account
-        
+
         Args:
             interaction: Discord interaction
             player_name: In-game player name
             server_id: Server ID (optional)
         """
         await interaction.response.defer(ephemeral=True)
-        
+
         # Get server ID from guild config if not provided
         if not server_id:
             # For now, hardcode a test server ID
             server_id = "test_server"
-        
+
         # Check if player exists
         player = await Player.get_by_player_name(server_id, player_name)
         if not player:
@@ -127,7 +127,7 @@ class PlayerLinksCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         # Check if link exists and belongs to this user
         link = await PlayerLink.get_by_player_id(server_id, player.player_id)
         if not link:
@@ -137,7 +137,7 @@ class PlayerLinksCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-            
+
         if link.discord_id != str(interaction.user.id):
             embed = EmbedBuilder.error(
                 title="Not Your Link",
@@ -145,14 +145,14 @@ class PlayerLinksCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         # Delete link
         success = await link.delete()
-        
+
         # Update player Discord ID if successful
         if success:
             await player.set_discord_id(None)
-            
+
             embed = EmbedBuilder.success(
                 title="Player Unlinked",
                 description=f"Successfully unlinked your Discord account from player `{player_name}` on server `{server_id}`."
@@ -162,9 +162,9 @@ class PlayerLinksCog(commands.Cog):
                 title="Unlink Failed",
                 description=f"Failed to unlink player `{player_name}`. Please try again later."
             )
-            
+
         await interaction.followup.send(embed=embed, ephemeral=True)
-    
+
     @app_commands.command(name="myplayers")
     @app_commands.describe(
         server_id="The server ID (default: first available server)"
@@ -175,21 +175,21 @@ class PlayerLinksCog(commands.Cog):
         server_id: Optional[str] = None
     ) -> None:
         """View all players linked to your Discord account
-        
+
         Args:
             interaction: Discord interaction
             server_id: Server ID (optional)
         """
         await interaction.response.defer(ephemeral=True)
-        
+
         # Get server ID from guild config if not provided
         if not server_id:
             # For now, hardcode a test server ID
             server_id = "test_server"
-        
+
         # Get linked players
         links = await PlayerLink.get_by_discord_id(server_id, str(interaction.user.id))
-        
+
         if not links:
             embed = EmbedBuilder.info(
                 title="No Linked Players",
@@ -197,14 +197,14 @@ class PlayerLinksCog(commands.Cog):
             )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
-        
+
         # Create embed
         embed = discord.Embed(
             title="Your Linked Players",
             description=f"Players linked to your Discord account on server `{server_id}`",
             color=discord.Color.blue()
         )
-        
+
         # Add player info
         for link in links:
             player = await Player.get_by_player_id(server_id, link.player_id)
@@ -214,7 +214,7 @@ class PlayerLinksCog(commands.Cog):
                     value=f"Kills: {player.kills}\nDeaths: {player.deaths}\nK/D: {player.kd_ratio:.2f}",
                     inline=True
                 )
-        
+
         await interaction.followup.send(embed=embed, ephemeral=True)
 
 async def setup(bot: commands.Bot) -> None:
