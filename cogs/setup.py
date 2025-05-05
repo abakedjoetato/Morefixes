@@ -375,7 +375,7 @@ class Setup(commands.Cog):
                 return
 
             # Get or create guild
-            guild = await Guild.get_by_id(self.bot.db, ctx.guild.id)
+            guild = await Guild.get_by_guild_id(self.bot.db, str(ctx.guild.id))
             if guild:
                 guild.db = self.bot.db
 

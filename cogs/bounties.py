@@ -576,10 +576,13 @@ class BountiesCog(commands.GroupCog, name="bounty"):
             server_exists = await check_server_exists(db, guild.id, server_id)
 
             if not server_exists:
-                await interaction.followup.send(
-                    f"Error: Server with ID {server_id} not found for this guild.",
-                    ephemeral=True
+                guild_model = await Guild.get_by_guild_id(db, guild_id) # Added to pass guild to embed
+                embed = await EmbedBuilder.create_error_embed( #await added here
+                    "Server Not Found",
+                    f"Server with ID {server_id} not found for this guild.",
+                    guild=guild_model
                 )
+                await interaction.followup.send(embed=embed, ephemeral=True)
                 return
 
             # Get active bounties

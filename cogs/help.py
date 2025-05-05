@@ -13,12 +13,12 @@ from utils.helpers import is_feature_enabled, get_guild_premium_tier, has_admin_
 
 class CommandSelect(discord.ui.Select):
     """Dropdown select for command categories"""
-    
+
     def __init__(self, bot, author_id: int, guild_id: int):
         self.bot = bot
         self.author_id = author_id
         self.guild_id = guild_id
-        
+
         # Define command categories
         options = [
             discord.SelectOption(label="Admin", description="Server administration commands", emoji="🛡️"),
@@ -30,22 +30,22 @@ class CommandSelect(discord.ui.Select):
             discord.SelectOption(label="Premium", description="Premium features and upgrades", emoji="✨"),
             discord.SelectOption(label="Parser", description="Data parsing system information", emoji="📋"),
         ]
-        
+
         super().__init__(placeholder="Select a category", options=options)
-    
+
     async def callback(self, interaction: discord.Interaction):
         # Only allow the original command user to use the dropdown
         if interaction.user.id != self.author_id:
             await interaction.response.send_message("This menu is not for you.", ephemeral=True)
             return
-        
+
         # Defer the response to avoid timeout
         try:
             await interaction.response.defer(ephemeral=False, thinking=False)
         except Exception as e:
             # Continue execution even if defer fails
             logging.warning(f"Error deferring response in CommandSelect callback: {e}")
-            
+
         # Get the guild model for theme with timeout protection
         guild_model = None
         try:
@@ -58,11 +58,11 @@ class CommandSelect(discord.ui.Select):
             logging.warning(f"Timeout getting guild model in CommandSelect callback for guild {self.guild_id}")
         except Exception as e:
             logging.error(f"Error getting guild model in CommandSelect callback: {e}")
-        
+
         # Create help embed based on selection
         category = self.values[0]
         embed = await self.create_category_embed(category, guild_model)
-        
+
         # Use followup.edit_message since we deferred the response
         try:
             await interaction.edit_original_response(embed=embed, view=self.view)
@@ -73,10 +73,10 @@ class CommandSelect(discord.ui.Select):
                 await interaction.followup.send("Error displaying help. Please try again.", ephemeral=True)
             except:
                 pass
-    
+
     async def create_category_embed(self, category: str, guild_model):
         """Create help embed for the selected category"""
-        
+
         if category == "Admin":
             title = "🛡️ Admin Commands"
             description = "Server administration commands"
@@ -87,7 +87,7 @@ class CommandSelect(discord.ui.Select):
                 {"name": "/admin sethomeguild", "value": "Set the current guild as the home guild (Bot Owner only)", "inline": False},
                 {"name": "/admin help", "value": "Show help for admin commands", "inline": False},
             ]
-        
+
         elif category == "Setup":
             title = "⚙️ Setup Commands"
             description = "Server setup and configuration commands"
@@ -98,7 +98,7 @@ class CommandSelect(discord.ui.Select):
                 {"name": "/setup list_servers", "value": "List all configured servers for this guild", "inline": False},
                 {"name": "/setup historical_parse <server>", "value": "Parse all historical data for a server", "inline": False},
             ]
-        
+
         elif category == "Killfeed":
             title = "☠️ Killfeed Commands"
             description = "Killfeed monitoring commands"
@@ -107,7 +107,7 @@ class CommandSelect(discord.ui.Select):
                 {"name": "/killfeed stop <server>", "value": "Stop the killfeed monitor for a server", "inline": False},
                 {"name": "/killfeed status", "value": "Check the status of killfeed monitors for this guild", "inline": False},
             ]
-            
+
         elif category == "Events":
             title = "🔔 Events Commands"
             description = "Server events monitoring commands"
@@ -121,7 +121,7 @@ class CommandSelect(discord.ui.Select):
                 {"name": "/events configure_connections <server> [options]", "value": "Configure which connection notifications are enabled", "inline": False},
                 {"name": "/events configure_suicides <server> [options]", "value": "Configure which suicide notifications are enabled", "inline": False},
             ]
-            
+
         elif category == "Stats":
             title = "📊 Stats Commands"
             description = "Player and server statistics commands"
@@ -136,7 +136,7 @@ class CommandSelect(discord.ui.Select):
                 {"name": "/stats rivalry <server> <player>", "value": "View a player's rivalries (Warlord+ tier)", "inline": False},
                 {"name": "/stats top_rivalries <server>", "value": "View the top rivalries on the server (Warlord+ tier)", "inline": False},
             ]
-            
+
         elif category == "Economy":
             title = "💰 Economy Commands"
             description = "Economy and gambling features"
@@ -152,7 +152,7 @@ class CommandSelect(discord.ui.Select):
                 {"name": "/gambling slots <server> [bet]", "value": "Play slots (Mercenary+ tiers)", "inline": False},
                 {"name": "/gambling roulette <server> [bet] [bet_type]", "value": "Play roulette (Mercenary+ tiers)", "inline": False},
             ]
-            
+
         elif category == "Premium":
             title = "✨ Premium Commands"
             description = "Premium features and management commands"
@@ -165,7 +165,7 @@ class CommandSelect(discord.ui.Select):
             ]
             # Add premium tiers information
             fields.append({"name": "Premium Tiers", "value": "**Scavenger** (Free): Basic server management, killfeed (1 server)\n**Survivor** (£5): Basic stats, enhanced killfeeds (1 server)\n**Mercenary** (£10): Enhanced stats, basic economy, simple gambling (2 servers)\n**Warlord** (£20): Full stats, economy, rivalries, basic bounties (3 servers)\n**Overseer** (£50): All features including advanced bounties, all gambling games (unlimited servers)", "inline": False})
-        
+
         elif category == "Parser":
             title = "📋 Parser System"
             description = "Tower of Temptation PvP Stats uses a sophisticated three-part parsing system for comprehensive data collection"
@@ -177,13 +177,13 @@ class CommandSelect(discord.ui.Select):
                 {"name": "Event Normalization", "value": "All three parsers normalize data to ensure consistent event handling and deduplication", "inline": False},
                 {"name": "Data Deduplication", "value": "System automatically detects and prevents duplicate event processing across all three parsers", "inline": False},
             ]
-        
+
         else:
             # Default fallback
             title = "Bot Commands"
             description = "Use the dropdown to view different command categories"
             fields = []
-        
+
         # Create embed
         try:
             embed = await EmbedBuilder.create_base_embed(
@@ -191,54 +191,54 @@ class CommandSelect(discord.ui.Select):
                 description=description,
                 guild=guild_model
             )
-            
+
             # Add fields
             for field in fields:
                 embed.add_field(name=field["name"], value=field["value"], inline=field.get("inline", False))
-            
+
             # Add footer
             embed.set_footer(text="Use /commands to see this help menu again")
-            
+
             return embed
         except Exception as e:
             # Log the error
             logging.error(f"Error creating category embed: {e}")
-            
+
             # Create a fallback embed
             fallback_embed = discord.Embed(
                 title=title,
                 description=description,
                 color=discord.Color.blue()
             )
-            
+
             # Add fields
             for field in fields:
                 fallback_embed.add_field(name=field["name"], value=field["value"], inline=field.get("inline", False))
-            
+
             # Add footer
             fallback_embed.set_footer(text="Use /commands to see this help menu again")
-            
+
             return fallback_embed
 
 
 class CommandsView(discord.ui.View):
     """View with select dropdown for command categories"""
-    
+
     def __init__(self, bot, author_id: int, guild_id: int):
         super().__init__(timeout=600)  # 10 minute timeout
-        
+
         # Add the select menu
         self.add_item(CommandSelect(bot, author_id, guild_id))
 
 
 class Help(commands.Cog):
     """Help commands for displaying bot documentation and command usage"""
-    
+
     def __init__(self, bot):
         self.bot = bot
         self.guild_cache = {}  # Simple cache to store guild models
         self.logger = logging.getLogger(__name__)
-    
+
     @app_commands.command(name="commands", description="View comprehensive help for all bot commands")
     async def commands(self, interaction: discord.Interaction):
         """Displays a comprehensive help system with all available commands"""
@@ -249,11 +249,11 @@ class Help(commands.Cog):
             except Exception as e:
                 self.logger.error(f"Error deferring response in commands command: {e}")
                 return
-            
+
             # First prepare a default theme in case we can't get the guild model
             guild_id = interaction.guild_id
             guild_model = None
-            
+
             # Try to get the guild model with timeout protection
             try:
                 guild_model = await asyncio.wait_for(
@@ -264,7 +264,7 @@ class Help(commands.Cog):
                 self.logger.warning(f"Timeout getting guild model for /commands in guild {guild_id}")
             except Exception as e:
                 self.logger.error(f"Error getting guild model for /commands: {e}")
-            
+
             # Create initial embed - use default theme if no guild model
             try:
                 embed = await EmbedBuilder.create_base_embed(
@@ -272,21 +272,21 @@ class Help(commands.Cog):
                     description="Use the dropdown menu below to navigate through different command categories.",
                     guild=guild_model
                 )
-                
+
                 # Add general info fields
                 embed.add_field(
                     name="Getting Started",
                     value="1️⃣ Use `/setup add_server <n> <host> <port> <user> <pass> <id>` to add a server\n2️⃣ Configure channels with `/setup channels <server>`\n3️⃣ Start monitoring with `/killfeed start <server>` and `/events start <server>`",
                     inline=False
                 )
-                
+
                 # Add premium tip
                 embed.add_field(
                     name="Premium Features",
                     value="Upgrade to premium for advanced statistics, economy features, and custom themes. Use `/premium features` to learn more.",
                     inline=False
                 )
-                
+
                 # Add footer
                 embed.set_footer(text="Select a category to see detailed command information")
             except Exception as e:
@@ -308,10 +308,10 @@ class Help(commands.Cog):
                     inline=False
                 )
                 embed.set_footer(text="Select a category to see detailed command information")
-            
+
             # Create and send view with dropdown
             view = CommandsView(self.bot, interaction.user.id, guild_id)
-            
+
             # Check if embed is a coroutine (shouldn't happen but let's be safe)
             try:
                 if hasattr(embed, '__await__'):
@@ -330,7 +330,7 @@ class Help(commands.Cog):
                             description="There was an error loading the help information. Please try again later.",
                             color=discord.Color.red()
                         )
-                
+
                 # Send the help message
                 await interaction.followup.send(embed=embed, view=view)
             except Exception as e:
@@ -340,7 +340,7 @@ class Help(commands.Cog):
                     await interaction.followup.send("An error occurred loading the help menu. Please try again later.")
                 except:
                     pass
-            
+
         except Exception as e:
             # Use bot.logger if self.logger is not defined
             logger = getattr(self, 'logger', getattr(self.bot, 'logger', None))
