@@ -121,7 +121,7 @@ class Admin(commands.Cog):
                     await self.bot.db.guilds.insert_one(target_guild.to_document())
                 except Exception as e:
                     logger.error(f"Error creating guild: {e}", exc_info=True)
-                    embed = EmbedBuilder.create_error_embed(
+                    embed = await EmbedBuilder.create_error_embed(
                         "Guild Creation Failed",
                         f"Could not create a guild with ID {guild_id}: {e}"
                     , guild=guild_model)
@@ -139,7 +139,7 @@ class Admin(commands.Cog):
                 guild_name = target_guild.name or f"Guild {guild_id}"
 
             # Send success message
-            embed = EmbedBuilder.create_success_embed(
+            embed = await EmbedBuilder.create_success_embed(
                 "Premium Tier Set",
                 f"The premium tier for {guild_name} has been set to **Tier {tier}**."
             , guild=guild_model)
@@ -147,7 +147,7 @@ class Admin(commands.Cog):
 
         except Exception as e:
             logger.error(f"Error setting premium tier: {e}", exc_info=True)
-            embed = EmbedBuilder.create_error_embed(
+            embed = await EmbedBuilder.create_error_embed(
                 "Error",
                 f"An error occurred while setting the premium tier: {e}"
             , guild=guild_model)
@@ -278,7 +278,7 @@ class Admin(commands.Cog):
                 logger.error(f"Failed to update .env file: {env_error}", exc_info=True)
 
             # Send success message
-            embed = EmbedBuilder.create_success_embed(
+            embed = await EmbedBuilder.create_success_embed(
                 "Home Guild Set",
                 f"This guild ({ctx.guild.name}) has been set as the home guild for the bot."
             , guild=guild_model)
