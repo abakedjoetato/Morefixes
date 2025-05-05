@@ -104,12 +104,32 @@ class Admin(commands.Cog):
                 await ctx.send(embed=embed)
                 return
 
-            # Get guild data
-            target_guild = await Guild.get_by_guild_id(self.bot.db, guild_id)
-            if not target_guild:
+            try:
+                # Get guild data with timeout protection
+                from utils.timeout import async_timeout
+                async with async_timeout(5.0):  # 5 second timeout
+                    target_guild = await Guild.get_by_guild_id(self.bot.db, guild_id)
+                    if not target_guild:
+                        embed = await EmbedBuilder.create_error_embed(
+                            "Guild Not Found",
+                            f"Could not find a guild with ID {guild_id}.",
+                            guild=guild_model
+                        )
+                        await ctx.send(embed=embed)
+                        return
+            except asyncio.TimeoutError:
                 embed = await EmbedBuilder.create_error_embed(
-                    "Guild Not Found",
-                    f"Could not find a guild with ID {guild_id}.",
+                    "Database Timeout",
+                    "The request took too long to process. Please try again.",
+                    guild=guild_model
+                )
+                await ctx.send(embed=embed)
+                return
+            except Exception as e:
+                logger.error(f"Error in premium command: {e}")
+                embed = await EmbedBuilder.create_error_embed(
+                    "Error",
+                    "An unexpected error occurred. Please try again.",
                     guild=guild_model
                 )
                 await ctx.send(embed=embed)

@@ -16,6 +16,28 @@ class Guild(BaseModel):
     """Discord guild configuration"""
     collection_name: ClassVar[str] = "guilds"
 
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert Guild object to dictionary
+        
+        Returns:
+            Dict containing all guild data
+        """
+        return {
+            "_id": self._id,
+            "guild_id": self.guild_id,
+            "name": self.name,
+            "premium_tier": self.premium_tier,
+            "admin_role_id": self.admin_role_id,
+            "admin_users": self.admin_users,
+            "servers": self.servers,
+            "color_primary": self.color_primary,
+            "color_secondary": self.color_secondary, 
+            "color_accent": self.color_accent,
+            "icon_url": self.icon_url,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at
+        }
+
     def __init__(
         self,
         db,

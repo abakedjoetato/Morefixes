@@ -61,6 +61,25 @@ class EmbedBuilder:
     }
     
     @classmethod
+    async def ensure_field_limits(cls, fields: Optional[List[Dict[str, Any]]] = None) -> List[Dict[str, Any]]:
+        """Ensure embed field limits are respected"""
+        if not fields:
+            return []
+            
+        processed_fields = []
+        for field in fields:
+            name = str(field.get("name", ""))[:256]  # Discord limit
+            value = str(field.get("value", ""))[:1024]  # Discord limit
+            processed_fields.append({
+                "name": name,
+                "value": value,
+                "inline": field.get("inline", False)
+            })
+            if len(processed_fields) >= 25:  # Discord's field limit
+                break
+        return processed_fields
+
+    @classmethod
     async def create_embed(cls, 
                           title: Optional[str] = None, 
                           description: Optional[str] = None, 
@@ -1068,3 +1087,27 @@ class EmbedBuilder:
             guild=guild,
             bot=bot
         )
+    @classmethod
+    def validate_embed_limits(cls, title: Optional[str] = None, description: Optional[str] = None) -> Tuple[str, str]:
+        """Validate and truncate embed title/description to Discord limits
+        
+        Args:
+            title: Embed title
+            description: Embed description
+            
+        Returns:
+            Tuple of (validated_title, validated_description)
+        """
+        # Discord limits
+        MAX_TITLE_LENGTH = 256
+        MAX_DESC_LENGTH = 4096
+        
+        # Validate title
+        if title:
+            title = str(title)[:MAX_TITLE_LENGTH]
+            
+        # Validate description 
+        if description:
+            description = str(description)[:MAX_DESC_LENGTH]
+            
+        return title, description
