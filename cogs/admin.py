@@ -94,10 +94,10 @@ class Admin(commands.Cog):
                 return
             
             # Validate tier
-            if tier < 0 or tier > 3:
+            if tier < 0 or tier > 4:
                 embed = EmbedBuilder.create_error_embed(
                     "Invalid Tier",
-                    "Premium tier must be between 0 and 3."
+                    "Premium tier must be between 0 and 4 (Scavenger, Survivor, Mercenary, Warlord, Overseer)."
                 , guild=guild_model)
                 await ctx.send(embed=embed)
                 return

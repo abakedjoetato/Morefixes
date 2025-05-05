@@ -16,17 +16,17 @@ logger = logging.getLogger(__name__)
 
 class Premium(commands.Cog):
     """Premium features and management commands"""
-    
+
     def __init__(self, bot):
         self.bot = bot
-    
+
     @commands.hybrid_group(name="premium", description="Premium management commands")
     @commands.guild_only()
     async def premium(self, ctx):
         """Premium command group"""
         if ctx.invoked_subcommand is None:
             await ctx.send("Please specify a subcommand.")
-    
+
     @premium.command(name="tiers", description="View available premium tiers and features")
     async def tiers(self, ctx):
         """View available premium tiers and features"""
@@ -40,14 +40,14 @@ class Premium(commands.Cog):
                     guild_model = Guild(self.bot.db, guild_data)
             except Exception as e:
                 logger.warning(f"Error getting guild model: {e}")
-            
+
             # Create base embed
             embed = EmbedBuilder.create_base_embed(
                 "Premium Tiers",
                 "View available premium tiers and their features",
                 guild=guild_model
             )
-            
+
             # Add info for each tier
             for tier_id, tier_info in PREMIUM_TIERS.items():
                 # Get tier info
@@ -57,11 +57,11 @@ class Premium(commands.Cog):
                     tier_title = f"{tier_name} (Free)"
                 else:
                     tier_title = f"{tier_name} ({price})"
-                
+
                 # Format features list
                 features = tier_info.get("features", [])
                 max_servers = tier_info.get("max_servers", 0)
-                
+
                 feature_display = {
                     "killfeed": "Killfeed",
                     "events": "Events & Missions",
@@ -73,25 +73,25 @@ class Premium(commands.Cog):
                     "bounty": "Auto-Bounty System",
                     "rivalries": "Rivalries System"
                 }
-                
+
                 feature_list = [f"✅ {feature_display.get(f, f)}" for f in features]
-                
+
                 # Create feature text
                 feature_text = "**Features:**\n" + "\n".join(feature_list)
                 feature_text += f"\n\n**Max Servers:** {max_servers}"
-                
+
                 # Add field for this tier
                 embed.add_field(
                     name=tier_title,
                     value=feature_text,
                     inline=False
                 )
-            
+
             # Add footer note
             embed.set_footer(text="Contact the bot owner to upgrade premium tier")
-            
+
             await ctx.send(embed=embed)
-            
+
         except Exception as e:
             logger.error(f"Error in premium tiers command: {e}")
             embed = EmbedBuilder.create_error_embed(
@@ -99,7 +99,7 @@ class Premium(commands.Cog):
                 f"Failed to show premium tiers: {e}"
             )
             await ctx.send(embed=embed)
-    
+
     @premium.command(name="status", description="Check premium status of this guild")
     async def status(self, ctx):
         """Check the premium status of this guild"""
@@ -123,29 +123,29 @@ class Premium(commands.Cog):
                 , guild=guild_model)
                 await ctx.send(embed=embed)
                 return
-            
+
             # Get guild object
             guild = Guild(self.bot.db, guild_data)
-            
+
             # Create embed using guild model
             embed = EmbedBuilder.create_base_embed(
                 f"Premium Status for {ctx.guild.name}",
                 f"Current tier: **{PREMIUM_TIERS.get(guild.premium_tier, {}).get('name', f'Tier {guild.premium_tier}')}** ({PREMIUM_TIERS.get(guild.premium_tier, {}).get('price', '£0')})", 
                 guild=guild)
-            
+
             # Add tier information
             tier_info = PREMIUM_TIERS.get(guild.premium_tier, {})
-            
+
             # Server slots
             max_servers = tier_info.get("max_servers", 1)
             current_servers = len(guild.servers)
-            
+
             embed.add_field(
                 name="Server Slots",
                 value=f"{current_servers}/{max_servers} used",
                 inline=True
             )
-            
+
             # Features
             features = tier_info.get("features", [])
             feature_display = {
@@ -155,20 +155,20 @@ class Premium(commands.Cog):
                 "stats": "Statistics & Leaderboards",
                 "custom_embeds": "Custom Embeds"
             }
-            
+
             feature_list = []
             for feature, display_name in feature_display.items():
                 if feature in features:
                     feature_list.append(f"✅ {display_name}")
                 else:
                     feature_list.append(f"❌ {display_name}")
-            
+
             embed.add_field(
                 name="Features",
                 value="\n".join(feature_list),
                 inline=False
             )
-            
+
             # Add upgrade info
             if guild.premium_tier < 4:  # 4 is Overseer tier
                 embed.add_field(
@@ -176,9 +176,9 @@ class Premium(commands.Cog):
                     value="To upgrade to a higher tier, please use `/premium upgrade`.",
                     inline=False
                 )
-            
+
             await ctx.send(embed=embed)
-            
+
         except Exception as e:
             logger.error(f"Error checking premium status: {e}", exc_info=True)
             # Get guild model for themed embed if possible
@@ -193,11 +193,11 @@ class Premium(commands.Cog):
                     "Error",
                     f"An error occurred while checking premium status: {e}")
             await ctx.send(embed=embed)
-    
+
     @premium.command(name="upgrade", description="Request a premium upgrade")
     async def upgrade(self, ctx):
         """Request a premium upgrade"""
-        
+
         try:
             # Get guild model for themed embed
             guild_data = None
@@ -218,10 +218,10 @@ class Premium(commands.Cog):
                 , guild=guild_model)
                 await ctx.send(embed=embed)
                 return
-            
+
             # Get guild object
             guild = Guild(self.bot.db, guild_data)
-            
+
             # Check if already at max tier
             if guild.premium_tier >= 4:  # Overseer is tier 4
                 embed = EmbedBuilder.create_error_embed(
@@ -230,7 +230,7 @@ class Premium(commands.Cog):
                 , guild=guild_model)
                 await ctx.send(embed=embed)
                 return
-            
+
             # Get home guild
             home_guild = self.bot.get_guild(self.bot.home_guild_id)
             if not home_guild:
@@ -240,14 +240,14 @@ class Premium(commands.Cog):
                 , guild=guild_model)
                 await ctx.send(embed=embed)
                 return
-            
+
             # Get admin channel in home guild
             admin_channel = None
             for channel in home_guild.text_channels:
                 if channel.name.lower() in ["admin", "bot-admin", "premium-requests"]:
                     admin_channel = channel
                     break
-            
+
             if not admin_channel:
                 embed = EmbedBuilder.create_error_embed(
                     "Error",
@@ -255,7 +255,7 @@ class Premium(commands.Cog):
                 , guild=guild_model)
                 await ctx.send(embed=embed)
                 return
-            
+
             # Create request embed
             request_embed = discord.Embed(
                 title="Premium Upgrade Request",
@@ -263,34 +263,34 @@ class Premium(commands.Cog):
                 color=discord.Color.gold(),
                 timestamp=discord.utils.utcnow()
             )
-            
+
             request_embed.add_field(name="Guild Name", value=ctx.guild.name, inline=True)
             request_embed.add_field(name="Guild ID", value=str(ctx.guild.id), inline=True)
             request_embed.add_field(name="Current Tier", value=str(guild.premium_tier), inline=True)
             request_embed.add_field(name="Requested By", value=f"{ctx.author} ({ctx.author.id})", inline=True)
-            
+
             # Add server count
             request_embed.add_field(name="Current Servers", value=str(len(guild.servers)), inline=True)
-            
+
             # Add a way to contact the requester
             request_embed.add_field(
                 name="Approve Command",
                 value=f"`!admin premium {ctx.guild.id} {guild.premium_tier + 1}`",
                 inline=False
             )
-            
+
             # Send request to admin channel
             await admin_channel.send(embed=request_embed)
-            
+
             # Send confirmation to user
             embed = EmbedBuilder.create_success_embed(
                 "Request Sent",
                 "Your premium upgrade request has been sent to the administrators. "
                 "You will be notified once your request has been processed."
             )
-            
+
             await ctx.send(embed=embed)
-            
+
         except Exception as e:
             logger.error(f"Error requesting premium upgrade: {e}", exc_info=True)
             embed = EmbedBuilder.create_error_embed(
@@ -298,11 +298,11 @@ class Premium(commands.Cog):
                 f"An error occurred while requesting a premium upgrade: {e}"
             , guild=guild_model)
             await ctx.send(embed=embed)
-    
+
     @premium.command(name="features", description="View available premium features")
     async def features(self, ctx):
         """View available premium features"""
-        
+
         try:
             # Get guild model for themed embed
             guild_data = None
@@ -319,7 +319,7 @@ class Premium(commands.Cog):
                 "Premium Features",
                 "Overview of premium features by tier"
             , guild=guild_model)
-            
+
             # Add tier information
             for tier, info in PREMIUM_TIERS.items():
                 # Get tier info
@@ -327,7 +327,7 @@ class Premium(commands.Cog):
                 price = info.get("price", "£0")
                 features = info.get("features", [])
                 max_servers = info.get("max_servers", 0)
-                
+
                 feature_display = {
                     "killfeed": "Killfeed",
                     "events": "Events & Missions",
@@ -339,14 +339,14 @@ class Premium(commands.Cog):
                     "bounty": "Auto-Bounty System",
                     "rivalries": "Rivalries System"
                 }
-                
+
                 feature_list = []
                 for feature, display_name in feature_display.items():
                     if feature in features:
                         feature_list.append(f"✅ {display_name}")
                     else:
                         feature_list.append(f"❌ {display_name}")
-                
+
                 # Add tier field
                 tier_title = f"{tier_name}" + (f" ({price})" if tier > 0 else " (Free)")
                 embed.add_field(
@@ -354,16 +354,16 @@ class Premium(commands.Cog):
                     value="\n".join(feature_list),
                     inline=False
                 )
-            
+
             # Add upgrade info
             embed.add_field(
                 name="How to Upgrade",
                 value="Use `/premium upgrade` to request a premium upgrade.",
                 inline=False
             )
-            
+
             await ctx.send(embed=embed)
-            
+
         except Exception as e:
             logger.error(f"Error showing premium features: {e}", exc_info=True)
             embed = EmbedBuilder.create_error_embed(
@@ -371,7 +371,7 @@ class Premium(commands.Cog):
                 f"An error occurred while showing premium features: {e}"
             , guild=guild_model)
             await ctx.send(embed=embed)
-    
+
     @premium.command(name="set", description="Set premium tier for a guild (admin only)")
     @app_commands.describe(
         guild_id="The ID of the guild to set premium for",
@@ -380,7 +380,7 @@ class Premium(commands.Cog):
     # Note: This command uses guild_id, not server_id, as it operates on guilds not servers
     async def set_premium(self, ctx, guild_id: str, tier: int):
         """Set premium tier for a guild (admin only)"""
-        
+
         try:
             # Get guild model for themed embed
             guild_data = None
@@ -400,7 +400,7 @@ class Premium(commands.Cog):
                 , guild=guild_model)
                 await ctx.send(embed=embed, ephemeral=True)
                 return
-            
+
             # Validate tier
             if tier < 0 or tier > 4:
                 embed = EmbedBuilder.create_error_embed(
@@ -409,7 +409,7 @@ class Premium(commands.Cog):
                 , guild=guild_model)
                 await ctx.send(embed=embed)
                 return
-            
+
             # Convert guild ID to int
             try:
                 guild_id_int = int(guild_id)
@@ -420,7 +420,7 @@ class Premium(commands.Cog):
                 , guild=guild_model)
                 await ctx.send(embed=embed)
                 return
-            
+
             # Get guild data
             guild = await Guild.get_by_id(self.bot.db, guild_id_int)
             if not guild:
@@ -430,20 +430,20 @@ class Premium(commands.Cog):
                 , guild=guild_model)
                 await ctx.send(embed=embed)
                 return
-            
+
             # Set premium tier
             await guild.set_premium_tier(tier)
-            
+
             # Get guild name from bot
             bot_guild = self.bot.get_guild(guild_id_int)
             guild_name = bot_guild.name if bot_guild else f"Guild {guild_id}"
-            
+
             # Get admin guild model for themed embed
             admin_guild_data = await self.bot.db.guilds.find_one({"guild_id": ctx.guild.id})
             admin_guild_model = None
             if admin_guild_data:
                 admin_guild_model = Guild(self.bot.db, admin_guild_data)
-            
+
             # Send success message
             tier_name = PREMIUM_TIERS.get(tier, {}).get("name", f"Tier {tier}")
             embed = EmbedBuilder.create_success_embed(
@@ -451,7 +451,7 @@ class Premium(commands.Cog):
                 f"The premium tier for {guild_name} has been set to **{tier_name}**.",
                 guild=admin_guild_model)
             await ctx.send(embed=embed)
-            
+
             # Try to notify the guild if possible
             if bot_guild:
                 try:
@@ -462,14 +462,14 @@ class Premium(commands.Cog):
                             if ch.name.lower() in ["general", "bot", "bot-commands", "announcements"]:
                                 channel = ch
                                 break
-                    
+
                     # If no preferred channel found, use the first one the bot can send to
                     if not channel:
                         for ch in bot_guild.text_channels:
                             if ch.permissions_for(bot_guild.me).send_messages:
                                 channel = ch
                                 break
-                    
+
                     if channel:
                         # Use the target guild model for the notification embed
                         tier_name = PREMIUM_TIERS.get(tier, {}).get("name", f"Tier {tier}")
@@ -477,11 +477,11 @@ class Premium(commands.Cog):
                             "Premium Tier Updated",
                             f"Your guild's premium tier has been updated to **{tier_name}**.",
                             guild=guild)
-                        
+
                         # Add features info
                         features = PREMIUM_TIERS.get(tier, {}).get("features", [])
                         max_servers = PREMIUM_TIERS.get(tier, {}).get("max_servers", 0)
-                        
+
                         feature_display = {
                             "killfeed": "Killfeed",
                             "events": "Events & Missions",
@@ -489,26 +489,26 @@ class Premium(commands.Cog):
                             "stats": "Statistics & Leaderboards",
                             "custom_embeds": "Custom Embeds"
                         }
-                        
+
                         feature_list = [f"✅ {feature_display[f]}" for f in features if f in feature_display]
-                        
+
                         notify_embed.add_field(
                             name="Available Features",
                             value="\n".join(feature_list),
                             inline=False
                         )
-                        
+
                         notify_embed.add_field(
                             name="Server Slots",
                             value=f"{len(guild.servers)}/{max_servers} used",
                             inline=True
                         )
-                        
+
                         await channel.send(embed=notify_embed)
-                
+
                 except Exception as e:
                     logger.error(f"Error notifying guild about premium update: {e}", exc_info=True)
-            
+
         except Exception as e:
             logger.error(f"Error setting premium tier: {e}", exc_info=True)
             # Get guild model for themed embed if possible
@@ -550,7 +550,7 @@ class Premium(commands.Cog):
                     guild=guild_model)
                 await ctx.send(embed=embed, ephemeral=True)
                 return
-            
+
             # Get guild data
             guild = await Guild.get_by_id(self.bot.db, ctx.guild.id)
             if not guild:
@@ -560,7 +560,7 @@ class Premium(commands.Cog):
                     "This guild is not set up. Please add a server first.")
                 await ctx.send(embed=embed)
                 return
-            
+
             # Check premium tier
             if not guild.check_feature_access("custom_embeds"):
                 embed = EmbedBuilder.create_error_embed(
@@ -569,7 +569,7 @@ class Premium(commands.Cog):
                     guild=guild)
                 await ctx.send(embed=embed)
                 return
-            
+
             # Check if theme exists
             from config import EMBED_THEMES
             if theme != "default" and theme not in EMBED_THEMES:
@@ -579,7 +579,7 @@ class Premium(commands.Cog):
                     guild=guild)
                 await ctx.send(embed=embed)
                 return
-            
+
             # Set theme
             success = await guild.set_theme(theme)
             if not success:
@@ -589,22 +589,22 @@ class Premium(commands.Cog):
                     guild=guild)
                 await ctx.send(embed=embed)
                 return
-            
+
             # Create preview embed with new theme
             embed = EmbedBuilder.create_base_embed(
                 "Theme Set Successfully",
                 f"Your guild's theme has been set to **{EMBED_THEMES[theme]['name']}**. All embeds will now use this theme.",
                 guild=guild
             )
-            
+
             embed.add_field(
                 name="Preview",
                 value="This is a preview of your new theme.",
                 inline=False
             )
-            
+
             await ctx.send(embed=embed)
-            
+
         except Exception as e:
             logger.error(f"Error setting theme: {e}", exc_info=True)
             # Get guild model for themed embed
