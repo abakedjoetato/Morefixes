@@ -82,7 +82,23 @@ class EmbedBuilder:
     @classmethod
     async def create_embed(cls, 
                           title: Optional[str] = None, 
-                          description: Optional[str] = None, 
+                          description: Optional[str] = None,
+                          
+    @classmethod
+    async def validate_embed_limits(cls, title: Optional[str] = None, description: Optional[str] = None) -> Tuple[str, str]:
+        """Validate and truncate embed title/description to Discord limits"""
+        MAX_TITLE_LENGTH = 256
+        MAX_DESC_LENGTH = 4096
+        
+        # Validate title
+        if title:
+            title = str(title)[:MAX_TITLE_LENGTH]
+            
+        # Validate description 
+        if description:
+            description = str(description)[:MAX_DESC_LENGTH]
+            
+        return title, description 
                           color: Optional[int] = None,
                           fields: Optional[List[Dict[str, Any]]] = None,
                           thumbnail_url: Optional[str] = None,

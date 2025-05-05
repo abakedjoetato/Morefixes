@@ -325,11 +325,20 @@ class Help(commands.Cog):
                         else:
                             print(f"Error awaiting embed coroutine: {e}")
                         # Create a simple error embed as fallback
-                        embed = discord.Embed(
-                            title="⚠️ Error Loading Help",
-                            description="There was an error loading the help information. Please try again later.",
-                            color=discord.Color.red()
-                        )
+                        try:
+                            embed = await EmbedBuilder.create_error_embed(
+                                "Error Loading Help",
+                                "There was an error loading the help information. Please try again later.",
+                                guild=guild_model
+                            )
+                        except Exception as embed_error:
+                            logger.error(f"Failed to create error embed: {embed_error}")
+                            embed = discord.Embed(
+                                title="Error Loading Help",
+                                description="There was an error loading the help information. Please try again later.",
+                                color=discord.Color.red()
+                            )
+
 
                 # Send the help message
                 await interaction.followup.send(embed=embed, view=view)

@@ -762,7 +762,7 @@ class Setup(commands.Cog):
             # Get server with timeout protection
             try:
                 async with asyncio.timeout(5.0):  # 5 second timeout
-                    server = await Server.get_by_id(self.bot.db, server_id, ctx.guild.id)
+                    server = await Server.get_by_id(self.bot.db, server_id, str(ctx.guild.id))
                     if not server:
                         raise ValueError(f"Server {server_id} not found")
             except asyncio.TimeoutError:

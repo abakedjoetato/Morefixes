@@ -376,9 +376,14 @@ class Guild(BaseModel):
         return tier_info.get("features", [])
 
     @classmethod
-    def from_document(cls, document: Dict[str, Any], db) -> Optional['Guild']:
+    async def from_document(cls, document: Dict[str, Any], db) -> Optional['Guild']:
         """Create a Guild instance from a database document"""
         if document is None:
             return None
         instance = cls(db, **document)
+        # Ensure all IDs are strings
+        if hasattr(instance, 'guild_id'):
+            instance.guild_id = str(instance.guild_id)
+        if hasattr(instance, 'admin_role_id'):
+            instance.admin_role_id = str(instance.admin_role_id) if instance.admin_role_id else None
         return instance
